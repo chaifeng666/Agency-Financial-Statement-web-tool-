@@ -298,11 +298,13 @@
     const starts = {};
     parts.forEach(pt => {
       const pp = pt.pages;
+      const ov = ctx.pageStart && +ctx.pageStart[pt.key || pt.no]; // 自訂起始頁
+      if (ov > 0) pageNo = ov;
       if (ctx.duplex !== false && pp.length && pp[0].side === 'L' && pageNo % 2 === 1) push({ html: '<div class="pg blank"><div class="bl">本 頁 空 白</div></div>' });
-      starts[pt.key || pt.no] = { from: pageNo, count: pp.length };
+      starts[pt.key || pt.no] = { from: pageNo, count: pp.length, ov: ov > 0 ? ov : null };
       pp.forEach(push);
     });
-    pages.starts = starts;
+    pages.starts = starts; pages.lastNo = pageNo - 1;
     return pages;
   }
   const CSS_RULES = `.pg{position:relative;width:210mm;height:297mm;background:#fff;margin:0 auto 6mm;overflow:hidden;font-family:"PMingLiU","新細明體","MingLiU","Noto Serif CJK TC",serif;color:#000;page-break-after:always}
