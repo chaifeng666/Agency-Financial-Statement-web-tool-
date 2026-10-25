@@ -93,17 +93,26 @@
     let host = document.getElementById('bk-measure');
     if (!host) { host = document.createElement('div'); host.id = 'bk-measure'; host.className = 'bk'; host.style.cssText = 'position:absolute;left:-30000px;top:0;visibility:hidden'; host.innerHTML = '<style>' + bookCSS('#bk-measure') + '</style><div class="pg slot" style="height:auto;overflow:visible;margin:0"></div>'; document.body.appendChild(host); }
     const slot = host.querySelector('.slot');
-    let headH = 0; const rowH = new Array(nR).fill(0);
+    let headH = 0; const rowH = new Array(nR).fill(0); const pageHead = [], lastHead = [];
     sp.pages.forEach(pcols => {
       slot.innerHTML = `<table class="tb" style="position:static;width:${pcols.reduce((a, p) => a + p.w, 0).toFixed(2)}mm;font-size:${T.bodyPt || 10}pt;--hpt:${T.headPt || 11}pt">${colgroup(pcols)}<thead>${T.headHTML(pcols)}</thead><tbody>${T.rows.map(rw => rowHTML(T, rw, pcols, 0)).join('')}</tbody></table>`;
       const tb = slot.querySelector('table');
-      headH = Math.max(headH, tb.tHead.getBoundingClientRect().height * PX);
+      const th = tb.tHead.getBoundingClientRect().height * PX; headH = Math.max(headH, th); pageHead.push(th);
+      const hr = tb.tHead.rows; lastHead.push(hr.length ? hr[hr.length - 1].getBoundingClientRect().height * PX : 0);
       [...tb.tBodies[0].rows].forEach((tr, i) => { rowH[i] = Math.max(rowH[i], tr.getBoundingClientRect().height * PX); });
     });
     let notesH = 0;
-    if (T.notes && T.notes.length) { slot.innerHTML = `<div class="notes" style="position:static;width:${PAGE.width}mm">${T.notes.map(esc).join('<br>')}</div>`; notesH = slot.firstChild.getBoundingClientRect().height * PX; }
+    if (T.notes && T.notes.length) { slot.innerHTML = `<div class="notes" style="position:static;width:${PAGE.width - 2.4}mm">${T.notes.map(esc).join('<br>')}</div>`; notesH = slot.firstChild.getBoundingClientRect().height * PX; }
     slot.innerHTML = '';
-    return { headH, rowH: rowH.map(h => Math.max(h, 5.2)), notesH };
+    return { headH, rowH: rowH.map(h => Math.max(h, 5.2)), notesH, pageHead, lastHead };
+  }
+  // 對頁左右表頭高度不同時，加高較矮那頁的表頭最後一列，讓兩頁內文列對齊
+  function headFor(T, M, pcols, pi) {
+    const h = T.headHTML(pcols);
+    if (!M.pageHead || M.pageHead[pi] == null) return h;
+    const d = M.headH - M.pageHead[pi]; if (d < 0.2) return h;
+    const k = h.lastIndexOf('<tr'); if (k < 0) return h;
+    return h.slice(0, k) + `<tr style="height:${(M.lastHead[pi] + d).toFixed(2)}mm"` + h.slice(k + 3);
   }
   // 超過一頁的長列（如立法院決議內容）依句讀切成多列
   function splitText(s, k) {
@@ -133,7 +142,16 @@
     return M;
   }
 
+  // 每頁表格寬度一律調整為表格區寬 173 mm、左邊界一致（規格指定 tableLeft 時除外），使各頁框線上下左右對齊
+  function normT(T) {
+    if (T._norm) return T; T._norm = true;
+    if (T.fixedLeft) return T;
+    T.left = PAGE.left;
+    T.spreads.forEach(sp => sp.pages.forEach(pg => { const s = pg.reduce((a, p) => a + p.w, 0); if (s > 0 && Math.abs(s - PAGE.width) > 0.05) pg.forEach(p => { p.w = p.w * PAGE.width / s; }); }));
+    return T;
+  }
   function tablePages(T, ctx) {
+    normT(T);
     const out = [];
     const AREA = PAGE.bottom - PAGE.tableTop;
     T.spreads.forEach((sp, si) => {
@@ -151,19 +169,22 @@
       });
       chunks.push(cur);
       // 備註放最後一頁表下方，放不下就把末幾列移到新頁
-      const noteH = lastSpread && T.notes && T.notes.length ? M.notesH + 1.5 : 0;
+      const noteH = lastSpread && T.notes && T.notes.length ? M.notesH + 2.4 : 0;
       if (noteH) { const sum = a => a.reduce((s, i) => s + M.rowH[i], 0); let lastC = chunks[chunks.length - 1]; if (sum(lastC) > avail - noteH) { const moved = []; while (lastC.length > 1 && sum(lastC) > avail - noteH) moved.unshift(lastC.pop()); if (sum(lastC) > avail - noteH || !moved.length) { chunks.push([]); } else chunks.push(moved); } }
       chunks.forEach((ch, ci) => {
         const last = lastSpread && ci === chunks.length - 1;
-        const tblH = AREA - (last ? noteH : 0);
+        const tblH = AREA; // 每頁表格框線同高（備註放在框內最下方）
         sp.pages.forEach((pcols, pi) => {
           const side = T.isSpread ? (pi === 0 ? 'L' : 'R') : 'S';
           let html = `<div class="pg" data-side="${side}" data-tbl="${esc(T.no)}">` + titleHTML(T, side);
           html += `<table class="tb" style="left:${(T.left || PAGE.left)}mm;top:${PAGE.tableTop}mm;width:${pcols.reduce((a, p) => a + p.w, 0).toFixed(2)}mm;font-size:${T.bodyPt || 10}pt;--hpt:${T.headPt || 11}pt">${colgroup(pcols)}`;
-          html += `<thead>${T.headHTML(pcols)}</thead><tbody>` + ch.map(i => rowHTML(T, T.rows[i], pcols, M.rowH[i])).join('');
-          const fillH = Math.max(0, tblH - M.headH - ch.reduce((a, i) => a + M.rowH[i], 0) - 0.8);
-          html += `<tr class="fill" style="height:${fillH.toFixed(2)}mm"><td colspan="${pcols.length}"></td></tr></tbody></table>`;
-          if (last && noteH && side !== 'R') html += `<div class="notes" style="left:${PAGE.left}mm;top:${(PAGE.tableTop + tblH + 1.5).toFixed(2)}mm">${T.notes.map(n => esc(n)).join('<br>')}</div>`;
+          html += `<thead>${headFor(T, M, pcols, pi)}</thead><tbody>` + ch.map(i => rowHTML(T, T.rows[i], pcols, M.rowH[i])).join('');
+          const withNote = last && noteH && side !== 'R';
+          const fillH = Math.max(0, tblH - M.headH - ch.reduce((a, i) => a + M.rowH[i], 0) - (withNote ? noteH : 0));
+          // 補白列：每欄各自一格，直線延伸到表底
+          html += `<tr class="fill" style="height:${fillH.toFixed(2)}mm">${pcols.map(() => '<td></td>').join('')}</tr>`;
+          if (withNote) html += `<tr class="nt" style="height:${noteH.toFixed(2)}mm"><td colspan="${pcols.length}">${T.notes.map(n => esc(n)).join('<br>')}</td></tr>`;
+          html += `</tbody></table>`;
           html += '</div>';
           out.push({ html, side });
         });
@@ -179,11 +200,8 @@
   }
 
   // 表格左邊界：規格指定 tableLeft，否則單頁表依欄寬總和置中
-  function leftOf(sp, spreads) {
-    if (sp.tableLeft != null && sp.tableLeft !== '') return +sp.tableLeft;
-    const sum = spreads && spreads[0] ? spreads[0].pages[0].reduce((a, p) => a + p.w, 0) : 0;
-    return !sp.spread && sum > 0 && sum < PAGE.width - 1 ? PAGE.left + (PAGE.width - sum) / 2 : PAGE.left;
-  }
+  function leftOf(sp) { return sp.tableLeft != null && sp.tableLeft !== '' ? +sp.tableLeft : PAGE.left; }
+  const fixedLeftOf = sp => sp.tableLeft != null && sp.tableLeft !== '';
   // ---------- 由模型組出表格定義 ----------
   function fromModel(m, ctx) {
     const sp = m.spec; const g = m.grid; const L = m.layout;
@@ -200,7 +218,7 @@
     for (let r = m.notesStart; r < g.length; r++) { const t = (g[r] || []).filter(v => flat(v)).map(v => String(v).trim()).join(' '); if (t && !/^備註[:：]?$/.test(flat(t))) notes.push(t); else if (t) notes.push('備註：'); }
     const spreads = layoutCols(sp, m.cols, m.wsCols, 1);
     return {
-      no: sp.no, isSpread: !!sp.spread, rows, rateCols, notes, spreads, left: leftOf(sp, spreads), headerRows: L.H1 - L.H0 + 1, bodyPt: sp.bodyPt || 10, headPt: sp.headPt || 11, titlePt: sp.titlePt || 0,
+      no: sp.no, isSpread: !!sp.spread, rows, rateCols, notes, spreads, left: leftOf(sp), fixedLeft: fixedLeftOf(sp), headerRows: L.H1 - L.H0 + 1, bodyPt: sp.bodyPt || 10, headPt: sp.headPt || 11, titlePt: sp.titlePt || 0,
       headHTML: pcols => headerHTML(g, m.merges, L.H0, L.H1, pcols),
       title: titles(sp, ctx, m), sub: subs(sp, ctx, m)
     };
@@ -222,7 +240,7 @@
     const rows = m.rows.map(r => r.section != null ? { section: r.section } : { cells: Object.fromEntries(cols.map(c => [c, r[c]])) });
     const spreads = layoutCols(sp, cols, null, 1);
     const rateCols = new Set(); (sp.header[sp.header.length - 1] || []).forEach(() => {});
-    return { no: sp.no, isSpread: !!sp.spread, rows, rateCols: new Set((sp.rateCols || []).concat((sp.formulas || []).filter(f => f[1] === '%').map(f => f[0]))), notes: m.notes || [], spreads, headerRows: sp.header.length, bodyPt: sp.bodyPt || (sp.no === '41' ? 12 : 10), headPt: sp.headPt || 11, titlePt: sp.titlePt || 0, left: leftOf(sp, spreads),
+    return { no: sp.no, isSpread: !!sp.spread, rows, rateCols: new Set((sp.rateCols || []).concat((sp.formulas || []).filter(f => f[1] === '%').map(f => f[0]))), notes: m.notes || [], spreads, headerRows: sp.header.length, bodyPt: sp.bodyPt || (sp.no === '41' ? 12 : 10), headPt: sp.headPt || 11, titlePt: sp.titlePt || 0, left: leftOf(sp), fixedLeft: fixedLeftOf(sp),
       headHTML: pcols => { // 手填表的表頭依欄位切頁
         if (spreads[0].pages.length === 1) return specHeaderHTML(sp.header);
         const set = new Set(pcols.map(p => p.c));
@@ -298,7 +316,9 @@
 .tb td{border-left:0.8px solid #000;border-right:0.8px solid #000;padding:0.5mm 0.8mm;vertical-align:top;line-height:1.3;white-space:normal;word-break:break-all;overflow:hidden}
 .tb td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.tb td.c{text-align:center}.tb td.k{white-space:nowrap;padding:0.5mm 0;text-align:center;font-size:9pt;overflow:visible}
 .tb tr.sec td{font-weight:bold}
-.tb tr.fill td{padding:0;border-bottom:1.2px solid #000}
+.tb tr.fill td{padding:0}
+.tb tbody tr:last-child td{border-bottom:1.2px solid #000}
+.tb tr.nt td{border:0.8px solid #000;border-top:0.8px solid #000;font-size:9.5pt;line-height:1.35;padding:1mm 1.2mm;vertical-align:top;text-align:left}
 .notes{position:absolute;top:274mm;font-size:9.5pt;line-height:1.35;width:173mm}
 .pno{position:absolute;bottom:12mm;left:0;right:0;text-align:center;font-size:11pt}
 .blank .bl{position:absolute;top:120mm;left:0;right:0;text-align:center;font-family:"DFKai-SB","標楷體",serif;font-size:48pt}
@@ -310,6 +330,7 @@
   // ---------- Excel ----------
   const MM2CH = 1 / 2.12;
   function excelSheet(ExcelJS, wb, name, T, opt) {
+    normT(T);
     const ws = wb.addWorksheet(name.slice(0, 31), { pageSetup: { paperSize: 9, orientation: 'portrait', margins: { left: 0.6, right: 0.35, top: 0.55, bottom: 0.6, header: 0.3, footer: 0.3 }, scale: 90 } });
     const cols = []; const widths = {}; const breaks = [];
     T.spreads.forEach((sp, si) => sp.pages.forEach((pg, pi) => { pg.forEach(p => { if (!(p.c in widths)) { cols.push(p.c); widths[p.c] = p.w; } }); if (!(si === T.spreads.length - 1 && pi === sp.pages.length - 1)) breaks.push(cols.length); }));

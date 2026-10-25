@@ -672,7 +672,7 @@ function fmtEditor(){
     <label class="field">標題字級（pt）<input type="number" step="0.5" min="8" max="30" data-f="titlePt" value="${t.titlePt || 16.5}"></label>
     <label class="field">表頭字級（pt）<input type="number" step="0.5" min="6" max="20" data-f="headPt" value="${t.headPt || 11}"></label>
     <label class="field">內文字級（pt）<input type="number" step="0.5" min="6" max="20" data-f="bodyPt" value="${t.bodyPt || (t.no === '41' ? 12 : 10)}"></label>
-    <label class="field">表格左邊界（mm，空白＝自動）<input type="number" step="0.1" min="0" max="60" data-f="tableLeft" value="${t.tableLeft == null ? '' : t.tableLeft}"></label>
+    <label class="field">表格左邊界（mm，空白＝18.1 與各頁對齊）<input type="number" step="0.1" min="0" max="60" data-f="tableLeft" value="${t.tableLeft == null ? '' : t.tableLeft}"></label>
   </div></fieldset>`;
   // 欄寬
   h += `<fieldset><legend>欄寬（mm）</legend>`;
@@ -720,8 +720,8 @@ function bindFmt(t, ci){
     const write = () => { t.left = ws.slice(0, t.spread ? split : ws.length).map(r1); t.right = t.spread ? ws.slice(split).map(r1) : null; };
     const sums = () => {
       const a = ws.slice(0, t.spread ? split : ws.length).reduce((x, y) => x + y, 0), b = t.spread ? ws.slice(split).reduce((x, y) => x + y, 0) : null;
-      const tag = v => `<span class="wsum ${v > 173.5 ? 'bad' : Math.abs(v - 173) < 1 ? 'ok' : ''}">${r1(v).toFixed(1)}</span>`;
-      $('#wSums').innerHTML = (t.spread ? `左頁 ${tag(a)}／右頁 ${tag(b)} mm` : `合計 ${tag(a)} mm`) + `（表格區寬 173 mm${(a > 173.5 || (b || 0) > 173.5) ? '；超過時會自動等比縮小' : ''}）`;
+      const tag = v => `<span class="wsum ${Math.abs(v - 173) < 1 ? 'ok' : 'bad'}">${r1(v).toFixed(1)}</span>`;
+      $('#wSums').innerHTML = (t.spread ? `左頁 ${tag(a)}／右頁 ${tag(b)} mm` : `合計 ${tag(a)} mm`) + `（列印時每頁等比調整為 173 mm，使各頁框線對齊；這裡的數字代表各欄比例）`;
       $$('#fmtEd .wtab tbody tr').forEach(tr => { const i = +tr.dataset.i, right = t.spread && i >= split; tr.classList.toggle('pgR', right); tr.querySelector('.pgc').textContent = t.spread ? (right ? '右' : '左') : '—'; });
     };
     sums();
