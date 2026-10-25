@@ -24,6 +24,13 @@
 
 > 所有檔案只在瀏覽器內處理，不會上傳到任何伺服器；工具本身不連網。
 
+## 決算書表工作台（輕量版）
+
+[`workbench/`](workbench/) 是另一個獨立的輕量工具，上方選單有：作業流程圖、生成總說明、生成目次、各書表格式調整。只需載入系統產製 `.xls`，不需範本 PDF。
+
+- 線上：<https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/workbench/>
+- 說明：[workbench/README.md](workbench/README.md)
+
 ## 作業步驟（完整版；簡易版為 1→2→3→4→7）
 
 | 步驟 | 內容 |
