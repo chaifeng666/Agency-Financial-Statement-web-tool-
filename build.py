@@ -33,3 +33,9 @@ for k, v in rep.items():
     h = h.replace(k, v if k == '/*__SPEC__*/' else safe(v))
 open('index.html', 'w', encoding='utf-8').write(h)
 print('index.html', len(h) // 1024, 'KB')
+# 簡易版：只處理上傳的書表（格式編修 → 內容編修 → 列印版面／Excel）
+hs = h.replace('<script id="spec2"', '<script>window.__SIMPLE__ = true;</script>\n<script id="spec2"', 1)
+hs = hs.replace('<title>決算書表編製工具（整合版）</title>', '<title>決算書表編製工具（簡易版）</title>', 1)
+assert '__SIMPLE__ = true' in hs
+open('simple.html', 'w', encoding='utf-8').write(hs)
+print('simple.html', len(hs) // 1024, 'KB')

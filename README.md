@@ -7,18 +7,30 @@
 - **對外公告檔**：每表一個 XML（英文標籤）＋ MD，附 SHA-256 雜湊；出國人員姓名可遮蔽
 - **格式 1～5**：封面、封底、目次、總說明、歲入來源別決算表（MD）
 
-**線上使用**：<https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/>（需在儲存庫 Settings → Pages 啟用，見下方）
-**離線使用**：下載 [`index.html`](index.html)，用 Chrome 或 Edge 開啟即可。
+## 兩個版本
+
+| 版本 | 檔案 | 適用 |
+|---|---|---|
+| **完整版** | [`index.html`](index.html) | 全套：範本 PDF／xlsx、格式編修、內容編修、18 條勾稽、#12／#38、列印版面、Excel、公告檔、格式 1～5 |
+| **簡易版** | [`simple.html`](simple.html) | 只處理**有上傳的系統產製書表**：載入 → 表名對照 → 格式編修 → 內容編修 → 列印版面／Excel |
+
+兩個版本都只處理有上傳系統檔的書表；沒有上傳的表不進入後續步驟。
+
+**線上使用**（需先在 Settings → Pages 啟用，見下方）：
+- 完整版：<https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/>
+- 簡易版：<https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/simple.html>
+
+**離線使用**：下載 `index.html` 或 `simple.html`，用 Chrome 或 Edge 開啟即可。
 
 > 所有檔案只在瀏覽器內處理，不會上傳到任何伺服器；工具本身不連網。
 
-## 作業步驟
+## 作業步驟（完整版；簡易版為 1→2→3→4→7）
 
 | 步驟 | 內容 |
 |---|---|
 | 1 載入檔案 | 系統產製 `.xls`（必要）；範本 PDF、範本 `.xlsx`、格式規格檔（選用） |
 | 2 表名對照 | 每張表的來源（系統檔／手填／推算／文字）、範本頁次與工作表 |
-| 3 格式說明 | 各表對頁或單頁、標題拆法、欄寬（mm）、表頭；可預覽、匯出說明與規格檔 |
+| 3 格式編修 | 只列有上傳的書表；可改對頁／單頁、左右頁標題、各欄寬度（mm）、標題／表頭／內文字級、表格左邊界、手填表表頭，即時預覽；可匯出規格檔明年沿用 |
 | 4 編修內容 | 系統值可改，合計、小計、比較增減、比率自動重算；手填表、總說明草稿、#41；可匯出／匯入編修檔 |
 | 5 內容核對 | 18 條表間勾稽（使用編修後數字） |
 | 6 #12、#38 | 依 #4 判斷 #12；#38 決算與會計收支對照表推算 |
@@ -47,7 +59,7 @@ src/
   spec2.json            內建格式規格（113 年度）
 vendor/                 第三方元件（見 THIRD_PARTY_NOTICES.md）
 tools/exceljs-bundle/   ExcelJS 瀏覽器版重新打包腳本
-build.py                組成單一檔 index.html
+build.py                組成單一檔 index.html（完整版）與 simple.html（簡易版）
 ```
 
 修改 `src/` 後執行：

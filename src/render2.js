@@ -95,7 +95,7 @@
     const slot = host.querySelector('.slot');
     let headH = 0; const rowH = new Array(nR).fill(0);
     sp.pages.forEach(pcols => {
-      slot.innerHTML = `<table class="tb" style="position:static;width:${pcols.reduce((a, p) => a + p.w, 0).toFixed(2)}mm;font-size:${T.bodyPt || 10}pt">${colgroup(pcols)}<thead>${T.headHTML(pcols)}</thead><tbody>${T.rows.map(rw => rowHTML(T, rw, pcols, 0)).join('')}</tbody></table>`;
+      slot.innerHTML = `<table class="tb" style="position:static;width:${pcols.reduce((a, p) => a + p.w, 0).toFixed(2)}mm;font-size:${T.bodyPt || 10}pt;--hpt:${T.headPt || 11}pt">${colgroup(pcols)}<thead>${T.headHTML(pcols)}</thead><tbody>${T.rows.map(rw => rowHTML(T, rw, pcols, 0)).join('')}</tbody></table>`;
       const tb = slot.querySelector('table');
       headH = Math.max(headH, tb.tHead.getBoundingClientRect().height * PX);
       [...tb.tBodies[0].rows].forEach((tr, i) => { rowH[i] = Math.max(rowH[i], tr.getBoundingClientRect().height * PX); });
@@ -159,7 +159,7 @@
         sp.pages.forEach((pcols, pi) => {
           const side = T.isSpread ? (pi === 0 ? 'L' : 'R') : 'S';
           let html = `<div class="pg" data-side="${side}" data-tbl="${esc(T.no)}">` + titleHTML(T, side);
-          html += `<table class="tb" style="left:${(T.left || PAGE.left)}mm;top:${PAGE.tableTop}mm;width:${pcols.reduce((a, p) => a + p.w, 0).toFixed(2)}mm;font-size:${T.bodyPt || 10}pt">${colgroup(pcols)}`;
+          html += `<table class="tb" style="left:${(T.left || PAGE.left)}mm;top:${PAGE.tableTop}mm;width:${pcols.reduce((a, p) => a + p.w, 0).toFixed(2)}mm;font-size:${T.bodyPt || 10}pt;--hpt:${T.headPt || 11}pt">${colgroup(pcols)}`;
           html += `<thead>${T.headHTML(pcols)}</thead><tbody>` + ch.map(i => rowHTML(T, T.rows[i], pcols, M.rowH[i])).join('');
           const fillH = Math.max(0, tblH - M.headH - ch.reduce((a, i) => a + M.rowH[i], 0) - 0.8);
           html += `<tr class="fill" style="height:${fillH.toFixed(2)}mm"><td colspan="${pcols.length}"></td></tr></tbody></table>`;
@@ -172,12 +172,18 @@
     return out;
   }
   function titleHTML(T, side) {
-    const t = T.title, s = T.sub;
-    if (side === 'L') return `<div class="ttl r" style="right:${PAGE.w - PAGE.left - PAGE.width}mm"><div class="ag">${esc(t.L[0])}</div><div class="tn">${esc(t.L[1])}</div></div><div class="sub" style="left:${PAGE.left}mm;width:${PAGE.width}mm"><span>${esc(s.left || '')}</span><span>中華民國</span></div>`;
-    if (side === 'R') return `<div class="ttl l" style="left:${PAGE.left}mm"><div class="ag">${esc(t.R[0])}</div><div class="tn">${esc(t.R[1])}</div></div><div class="sub" style="left:${PAGE.left}mm;width:${PAGE.width}mm"><span>${esc(s.year)}</span><span>${esc(s.unit || '')}</span></div>`;
-    return `<div class="ttl c">${t.lines.map((x, i) => `<div class="${i === 0 ? 'ag' : (i < t.lines.length - 1 || t.lines.length === 2 ? 'tn' : 'yr')}">${esc(x)}</div>`).join('')}</div><div class="sub" style="left:${PAGE.left}mm;width:${PAGE.width}mm"><span>${esc(s.left || '')}</span><span>${esc(s.unit || '')}</span></div>`;
+    const t = T.title, s = T.sub; const tv = T.titlePt ? `;--tpt:${T.titlePt}pt` : '';
+    if (side === 'L') return `<div class="ttl r" style="right:${PAGE.w - PAGE.left - PAGE.width}mm${tv}"><div class="ag">${esc(t.L[0])}</div><div class="tn">${esc(t.L[1])}</div></div><div class="sub" style="left:${PAGE.left}mm;width:${PAGE.width}mm"><span>${esc(s.left || '')}</span><span>中華民國</span></div>`;
+    if (side === 'R') return `<div class="ttl l" style="left:${PAGE.left}mm${tv}"><div class="ag">${esc(t.R[0])}</div><div class="tn">${esc(t.R[1])}</div></div><div class="sub" style="left:${PAGE.left}mm;width:${PAGE.width}mm"><span>${esc(s.year)}</span><span>${esc(s.unit || '')}</span></div>`;
+    return `<div class="ttl c" style="${tv.slice(1)}">${t.lines.map((x, i) => `<div class="${i === 0 ? 'ag' : (i < t.lines.length - 1 || t.lines.length === 2 ? 'tn' : 'yr')}">${esc(x)}</div>`).join('')}</div><div class="sub" style="left:${PAGE.left}mm;width:${PAGE.width}mm"><span>${esc(s.left || '')}</span><span>${esc(s.unit || '')}</span></div>`;
   }
 
+  // 表格左邊界：規格指定 tableLeft，否則單頁表依欄寬總和置中
+  function leftOf(sp, spreads) {
+    if (sp.tableLeft != null && sp.tableLeft !== '') return +sp.tableLeft;
+    const sum = spreads && spreads[0] ? spreads[0].pages[0].reduce((a, p) => a + p.w, 0) : 0;
+    return !sp.spread && sum > 0 && sum < PAGE.width - 1 ? PAGE.left + (PAGE.width - sum) / 2 : PAGE.left;
+  }
   // ---------- 由模型組出表格定義 ----------
   function fromModel(m, ctx) {
     const sp = m.spec; const g = m.grid; const L = m.layout;
@@ -194,7 +200,7 @@
     for (let r = m.notesStart; r < g.length; r++) { const t = (g[r] || []).filter(v => flat(v)).map(v => String(v).trim()).join(' '); if (t && !/^備註[:：]?$/.test(flat(t))) notes.push(t); else if (t) notes.push('備註：'); }
     const spreads = layoutCols(sp, m.cols, m.wsCols, 1);
     return {
-      no: sp.no, isSpread: !!sp.spread, rows, rateCols, notes, spreads, headerRows: L.H1 - L.H0 + 1, bodyPt: sp.bodyPt || 10,
+      no: sp.no, isSpread: !!sp.spread, rows, rateCols, notes, spreads, left: leftOf(sp, spreads), headerRows: L.H1 - L.H0 + 1, bodyPt: sp.bodyPt || 10, headPt: sp.headPt || 11, titlePt: sp.titlePt || 0,
       headHTML: pcols => headerHTML(g, m.merges, L.H0, L.H1, pcols),
       title: titles(sp, ctx, m), sub: subs(sp, ctx, m)
     };
@@ -202,9 +208,9 @@
   function titles(sp, ctx, m) {
     const ag = ctx.agency;
     if (sp.spread) { const L = sp.titleL || [ag, sp.name], R = sp.titleR || ['', '']; return { L: [L[0], L[1]], R: [R[0], R[1]] }; }
-    const name = sp.no === '22-36' && m && m.subject ? m.subject + '明細表' : sp.name;
+    const name = sp.no === '22-36' && m && m.subject ? m.subject + '明細表' : (sp.titleText || sp.name);
     const date = /^(20|22-36)$/.test(sp.no) ? `中華民國${ctx.year}年12月31日` : `中華民國${ctx.year}年度`;
-    return { lines: sp.no === '41' ? [ag, '立法院審議通過中央政府總預算案、總決算審核報告', '決議、附帶決議及注意事項辦理情形報告表', date] : [ag, name, date] };
+    return { lines: sp.no === '41' && !sp.titleText ? [ag, '立法院審議通過中央政府總預算案、總決算審核報告', '決議、附帶決議及注意事項辦理情形報告表', date] : [ag].concat(String(name).split('\n'), [date]) };
   }
   function subs(sp, ctx, m) {
     const meta = (m && m.meta) || {};
@@ -216,7 +222,7 @@
     const rows = m.rows.map(r => r.section != null ? { section: r.section } : { cells: Object.fromEntries(cols.map(c => [c, r[c]])) });
     const spreads = layoutCols(sp, cols, null, 1);
     const rateCols = new Set(); (sp.header[sp.header.length - 1] || []).forEach(() => {});
-    return { no: sp.no, isSpread: !!sp.spread, rows, rateCols: new Set((sp.rateCols || []).concat((sp.formulas || []).filter(f => f[1] === '%').map(f => f[0]))), notes: m.notes || [], spreads, headerRows: sp.header.length, bodyPt: sp.no === '41' ? 12 : (sp.bodyPt || 10), left: sp.no === '41' ? 24.4 : PAGE.left,
+    return { no: sp.no, isSpread: !!sp.spread, rows, rateCols: new Set((sp.rateCols || []).concat((sp.formulas || []).filter(f => f[1] === '%').map(f => f[0]))), notes: m.notes || [], spreads, headerRows: sp.header.length, bodyPt: sp.bodyPt || (sp.no === '41' ? 12 : 10), headPt: sp.headPt || 11, titlePt: sp.titlePt || 0, left: leftOf(sp, spreads),
       headHTML: pcols => { // 手填表的表頭依欄位切頁
         if (spreads[0].pages.length === 1) return specHeaderHTML(sp.header);
         const set = new Set(pcols.map(p => p.c));
@@ -284,10 +290,10 @@
   const CSS_RULES = `.pg{position:relative;width:210mm;height:297mm;background:#fff;margin:0 auto 6mm;overflow:hidden;font-family:"PMingLiU","新細明體","MingLiU","Noto Serif CJK TC",serif;color:#000;page-break-after:always}
 .ttl{position:absolute;top:15mm;font-family:"DFKai-SB","標楷體","BiauKai","Noto Serif CJK TC",serif}
 .ttl.r{text-align:right}.ttl.l{text-align:left}.ttl.c{left:0;right:0;text-align:center}
-.ttl .ag{font-size:15pt;line-height:1.35}.ttl .tn{font-size:16.5pt;line-height:1.35}.ttl .yr{font-size:12pt;line-height:1.5}
+.ttl .ag{font-size:15pt;line-height:1.35}.ttl .tn{font-size:var(--tpt,16.5pt);line-height:1.35}.ttl .yr{font-size:12pt;line-height:1.5}
 .sub{position:absolute;top:37.5mm;display:flex;justify-content:space-between;font-family:"DFKai-SB","標楷體","BiauKai",serif;font-size:11.5pt}
 .tb{position:absolute;border-collapse:collapse;table-layout:fixed;border:1.2px solid #000}
-.tb th{font-family:"DFKai-SB","標楷體","BiauKai",serif;font-weight:normal;font-size:11pt;border:0.8px solid #000;padding:1mm 0.6mm;text-align:center;vertical-align:middle;line-height:1.25}
+.tb th{font-family:"DFKai-SB","標楷體","BiauKai",serif;font-weight:normal;font-size:var(--hpt,11pt);border:0.8px solid #000;padding:1mm 0.6mm;text-align:center;vertical-align:middle;line-height:1.25}
 .tb thead tr:last-child th{border-bottom:1.2px solid #000}
 .tb td{border-left:0.8px solid #000;border-right:0.8px solid #000;padding:0.5mm 0.8mm;vertical-align:top;line-height:1.3;white-space:normal;word-break:break-all;overflow:hidden}
 .tb td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.tb td.c{text-align:center}.tb td.k{white-space:nowrap;padding:0.5mm 0;text-align:center;font-size:9pt;overflow:visible}
@@ -309,17 +315,17 @@
     T.spreads.forEach((sp, si) => sp.pages.forEach((pg, pi) => { pg.forEach(p => { if (!(p.c in widths)) { cols.push(p.c); widths[p.c] = p.w; } }); if (!(si === T.spreads.length - 1 && pi === sp.pages.length - 1)) breaks.push(cols.length); }));
     cols.forEach((c, i) => { ws.getColumn(i + 1).width = Math.max(1.5, (widths[c] * 96 / 25.4 - 5) / 8); });
     const n = cols.length;
-    const kai = { name: '標楷體', size: 11 }, ming = { name: '新細明體', size: 10 };
+    const kai = { name: '標楷體', size: T.headPt || 11 }, ming = { name: '新細明體', size: T.bodyPt || 10 };
     let r = 1;
     if (T.title.lines) {
-      T.title.lines.filter(Boolean).forEach((t, i) => { ws.mergeCells(r, 1, r, n); const cell = ws.getCell(r, 1); cell.value = t; cell.font = { name: '標楷體', size: i === 0 ? 15 : (i === T.title.lines.length - 1 && i > 1 ? 12 : 16) }; cell.alignment = { horizontal: 'center' }; r++; });
+      T.title.lines.filter(Boolean).forEach((t, i) => { ws.mergeCells(r, 1, r, n); const cell = ws.getCell(r, 1); cell.value = t; cell.font = { name: '標楷體', size: i === 0 ? 15 : (i === T.title.lines.length - 1 && i > 1 ? 12 : (T.titlePt || 16)) }; cell.alignment = { horizontal: 'center' }; r++; });
       const subRow = ws.getRow(r); subRow.getCell(1).value = T.sub.left || ''; subRow.getCell(n).value = T.sub.unit || ''; subRow.getCell(n).alignment = { horizontal: 'right' }; subRow.font = kai; r++;
     } else {
       // 對頁：左頁標題靠右、右頁標題靠左（同列印版面）
       const nL = T.spreads[0].pages[0].length, hasR = n > nL;
       [0, 1].forEach(i => {
-        ws.mergeCells(r, 1, r, nL); const a = ws.getCell(r, 1); a.value = T.title.L[i]; a.font = { name: '標楷體', size: i ? 16.5 : 15 }; a.alignment = { horizontal: 'right' };
-        if (hasR) { ws.mergeCells(r, nL + 1, r, n); const b = ws.getCell(r, nL + 1); b.value = T.title.R[i]; b.font = { name: '標楷體', size: i ? 16.5 : 15 }; b.alignment = { horizontal: 'left' }; }
+        ws.mergeCells(r, 1, r, nL); const a = ws.getCell(r, 1); a.value = T.title.L[i]; a.font = { name: '標楷體', size: i ? (T.titlePt || 16.5) : 15 }; a.alignment = { horizontal: 'right' };
+        if (hasR) { ws.mergeCells(r, nL + 1, r, n); const b = ws.getCell(r, nL + 1); b.value = T.title.R[i]; b.font = { name: '標楷體', size: i ? (T.titlePt || 16.5) : 15 }; b.alignment = { horizontal: 'left' }; }
         r++;
       });
       r++;
@@ -396,5 +402,5 @@
     return z.generateAsync({ type: typeof window === 'undefined' ? 'nodebuffer' : 'arraybuffer', compression: 'DEFLATE' });
   }
 
-  return { headerHTML, specHeaderHTML, excelText, PLAN_HDR, PLAN_W, bookCSS, measure, layoutCols, fromModel, fromManual, tablePages, textPages, book, htmlDoc, excelSheet, headerCellsFromModel, headerCellsFromSpec, injectColBreaks, PAGE };
+  return { leftOf, headerHTML, specHeaderHTML, excelText, PLAN_HDR, PLAN_W, bookCSS, measure, layoutCols, fromModel, fromManual, tablePages, textPages, book, htmlDoc, excelSheet, headerCellsFromModel, headerCellsFromSpec, injectColBreaks, PAGE };
 });
