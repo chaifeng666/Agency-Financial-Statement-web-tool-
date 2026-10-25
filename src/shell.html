@@ -238,12 +238,14 @@ body:not(.simple) .simple-only{display:none!important}
         <label class="field">起始頁碼<input type="number" id="startPage" value="1" min="1"></label>
         <label class="field">輸出檔名前綴<input type="text" id="outPrefix"></label>
       </div>
-      <h4 class="grp">A　列印版面（A4 對頁，依範本格式）</h4>
+      <h4 class="grp">A　列印版面（A4，依範本格式）</h4>
+      <div class="radio" style="margin:0 0 6px"><label><input type="radio" name="bkMode2" value="duplex" checked> 雙面列印（對頁；左右頁並排檢視，必要時插入「本頁空白」）</label><label><input type="radio" name="bkMode2" value="simplex"> 單面列印（逐頁，不插入空白頁）</label></div>
       <div class="actions" style="justify-content:flex-start;margin:0 0 8px">
         <button class="btn primary" id="btnBook">產生列印版面</button>
         <button class="btn" id="btnBookDl" disabled>下載 .html</button>
         <button class="btn" id="btnBookPrint" disabled>列印／存 PDF</button>
         <button class="btn" id="btnBookTab" disabled>到「列印版面」分頁全頁檢視</button>
+        <button class="btn" id="btnBookClose" disabled>✕ 關閉預覽</button>
         <span class="note" id="bookMsg" style="margin:0"></span>
       </div>
       <div id="bookToc"></div>
@@ -276,7 +278,8 @@ body:not(.simple) .simple-only{display:none!important}
 <!-- ================= 列印版面 ================= -->
 <section class="card hidden" id="tab-book">
   <h2>列印版面</h2>
-  <p class="lead">A4 對頁書表版面。可直接列印或存成 PDF（列印對話框選「另存為 PDF」，紙張 A4、邊界「無」、勾選「背景圖形」）。也可以開啟以前下載的列印版面檔來檢視、列印。</p>
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><p class="lead" style="margin:0 0 10px">A4 書表版面。可直接列印或存成 PDF（列印對話框選「另存為 PDF」，紙張 A4、邊界「無」、勾選「背景圖形」；雙面列印請在印表機設定選「雙面－長邊翻頁」）。也可以開啟以前下載的列印版面檔來檢視、列印。</p><button class="btn" id="bkClose" type="button" style="flex:none">✕ 關閉列印版面</button></div>
+  <div class="radio" style="margin:0 0 8px"><label><input type="radio" name="bkMode" value="duplex" checked> 雙面列印（對頁；左右頁並排檢視，必要時插入「本頁空白」）</label><label><input type="radio" name="bkMode" value="simplex"> 單面列印（逐頁，不插入空白頁）</label><span id="bkModeNote" style="font-size:12.5px;color:var(--ink2)"></span></div>
   <div class="actions" style="justify-content:flex-start;margin:0 0 10px">
     <button class="btn primary" id="bkRegen" type="button">依目前資料重新排版</button>
     <button class="btn" id="bkPrint" type="button" disabled>列印／存 PDF</button>
@@ -287,7 +290,7 @@ body:not(.simple) .simple-only{display:none!important}
     <select id="bkZoom"><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option></select>
     <span class="note" id="bkMsg" style="margin:0"></span>
   </div>
-  <div id="bkEmpty" class="callout info">尚未產生列印版面。請在「作業」完成到步驟六後按「依目前資料重新排版」，或開啟已存的列印版面檔。</div>
+  <div id="bkEmpty" class="callout info">尚未產生列印版面。請在「作業」完成到<span class="full-only">步驟六</span><span class="simple-only">步驟四</span>後按「依目前資料重新排版」，或開啟已存的列印版面檔。</div>
   <iframe id="bookMain" title="列印版面" sandbox="allow-same-origin allow-modals" style="width:100%;height:80vh;border:1px solid var(--line);border-radius:8px;background:#888" class="hidden"></iframe>
 </section>
 
@@ -404,7 +407,7 @@ const S = { tplWb: null, tplBuf: null, tplName: '', bookHtml: null, spec: clone(
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const now = () => { const d=new Date(); return `${d.getFullYear()-1911}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
 const specOf = no => S.spec.tables.find(t => t.no === no);
-const ctx = () => ({ agency: $('#agency').value.trim() || '行政院主計總處', year: S.an ? S.an.year : '', startPage: Math.max(1, +$('#startPage').value || 1) });
+const ctx = () => ({ agency: $('#agency').value.trim() || '行政院主計總處', year: S.an ? S.an.year : '', startPage: Math.max(1, +$('#startPage').value || 1), duplex: S.duplex !== false });
 const dl = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); };
 if (window.pdfjsLib) { try { pdfjsLib.GlobalWorkerOptions.workerSrc = ''; } catch(e){} }
 
@@ -1051,12 +1054,12 @@ $('#btnBook').onclick = async () => {
   try {
     buildEdited(); const c = ctx();
     const parts = allParts(); const pages = R.book(parts, c);
-    S.book = { html: R.htmlDoc(pages, `${c.year}年度決算書表`), pages: pages.length, starts: pages.starts };
+    S.book = { html: R.htmlDoc(pages, `${c.year}年度決算書表`, c), pages: pages.length, starts: pages.starts, duplex: c.duplex };
     const nm = k => { const m = S.models[k]; return m.subject ? m.subject + '明細表' : m.name; };
     $('#bookToc').innerHTML = `<div class="scroll" style="max-height:260px;overflow:auto"><table class="t"><thead><tr><th>表號</th><th>表名</th><th style="text-align:right">起始頁</th><th style="text-align:right">頁數</th></tr></thead><tbody>${parts.map(p => { const s = pages.starts[p.key]; return `<tr><td>${esc(p.key.split(':')[0])}</td><td>${esc(nm(p.key))}</td><td class="num">${s.from}</td><td class="num">${s.count}</td></tr>`; }).join('')}</tbody></table></div>`;
     const pv = $('#bookPv'); pv.classList.remove('hidden');
     pv.innerHTML = `<iframe id="bookFrame" style="width:100%;height:100%;border:0;background:#888"></iframe>`; $('#bookFrame').srcdoc = S.book.html;
-    $('#btnBookDl').disabled = false; $('#btnBookPrint').disabled = false; $('#btnBookTab').disabled = false;
+    $('#btnBookDl').disabled = false; $('#btnBookPrint').disabled = false; $('#btnBookTab').disabled = false; $('#btnBookClose').disabled = false;
     showBook(S.book.html, `${c.year}年度決算書表（${pages.length} 頁）`);
     $('#bookMsg').textContent = `共 ${pages.length} 頁（第 ${c.startPage}～${c.startPage + pages.length - 1} 頁）`;
     confirmStep(7, `產生列印版面 ${pages.length} 頁`);
@@ -1066,6 +1069,18 @@ $('#btnBook').onclick = async () => {
 $('#btnBookDl').onclick = () => S.book && dl(new Blob([S.book.html], {type:'text/html;charset=utf-8'}), `${$('#outPrefix').value || 'book'}_列印版面.html`);
 $('#btnBookPrint').onclick = () => printBook();
 $('#btnBookTab').onclick = () => $('nav.tabs button[data-tab="book"]').click();
+$('#btnBookClose').onclick = () => { $('#bookPv').classList.add('hidden'); $('#btnBookClose').disabled = true; };
+$('#bkClose').onclick = () => $('nav.tabs button[data-tab="work"]').click();
+// 單面／雙面列印
+const bookReady = () => SIMPLE ? !!S.done[4] : !!S.done[6];
+function setMode(v){
+  S.duplex = v === 'duplex';
+  $$('input[name=bkMode],input[name=bkMode2]').forEach(r => { r.checked = r.value === v; });
+  if (S.book && bookReady()) { if (S.step !== 7) init7(); $('#btnBook').click(); return; }
+  const d = $('#bookMain').contentDocument, bk = d && d.querySelector('.bk');
+  if (bk) { bk.classList.toggle('duplex', S.duplex); $('#bkModeNote').textContent = '（已開啟的檔案只切換檢視方式；空白頁與頁碼維持原檔）'; }
+}
+$$('input[name=bkMode],input[name=bkMode2]').forEach(r => r.onchange = () => setMode(r.value));
 // ---- 列印版面分頁 ----
 function showBook(html, label){
   S.bookHtml = html; const f = $('#bookMain');
@@ -1074,13 +1089,14 @@ function showBook(html, label){
     const seen = {}; const opts = ['<option value="">跳到表…</option>'];
     [...d.querySelectorAll('.pg')].forEach((p, i) => { const k = p.dataset.tbl; if (k && !(k in seen)) { seen[k] = i; const pn = p.querySelector('.pno'); opts.push(`<option value="${i}">#${esc(k)}（第 ${pn ? esc(pn.textContent) : i + 1} 頁）</option>`); } });
     $('#bkJump').innerHTML = opts.join(''); $('#bkJump').disabled = opts.length < 2;
-    applyZoom(); $('#bkMsg').textContent = `${label}，共 ${d.querySelectorAll('.pg').length} 頁`;
+    const bk = d.querySelector('.bk'); if (bk && !bk.dataset.mode) bk.classList.toggle('duplex', S.duplex !== false);
+    applyZoom(); $('#bkMsg').textContent = `${label}，共 ${d.querySelectorAll('.pg').length} 頁（${bk && bk.classList.contains('duplex') ? '雙面' : '單面'}）`;
   };
   f.srcdoc = html; f.classList.remove('hidden'); $('#bkEmpty').classList.add('hidden');
   $('#bkPrint').disabled = false; $('#bkDl').disabled = false;
 }
 function applyZoom(){ const d = $('#bookMain').contentDocument; if (d && d.body) d.body.style.zoom = $('#bkZoom').value; }
-function fitBook(){ if (!S.bookHtml) $('#bkRegen').disabled = !S.done[6]; }
+function fitBook(){ $('#bkRegen').disabled = !bookReady(); }
 function printBook(){
   if (!S.bookHtml) return; const f = $('#bookMain');
   const go2 = () => { const d = f.contentDocument; if (d && d.body) d.body.style.zoom = ''; f.contentWindow.focus(); f.contentWindow.print(); applyZoom(); };
@@ -1098,7 +1114,7 @@ $('#fBook').onchange = async e => {
   showBook(t, f.name); e.target.value = '';
 };
 $('#bkRegen').onclick = () => {
-  if (!S.done[6]) { $('#bkMsg').textContent = '請先在「作業」完成到步驟六'; return; }
+  if (!bookReady()) { $('#bkMsg').textContent = SIMPLE ? '請先在「作業」完成到步驟四' : '請先在「作業」完成到步驟六'; return; }
   if (S.step !== 7) init7();
   $('#btnBook').click();
 };

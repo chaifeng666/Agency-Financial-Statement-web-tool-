@@ -298,7 +298,7 @@
     const starts = {};
     parts.forEach(pt => {
       const pp = pt.pages;
-      if (pp.length && pp[0].side === 'L' && pageNo % 2 === 1) push({ html: '<div class="pg blank"><div class="bl">本 頁 空 白</div></div>' });
+      if (ctx.duplex !== false && pp.length && pp[0].side === 'L' && pageNo % 2 === 1) push({ html: '<div class="pg blank"><div class="bl">本 頁 空 白</div></div>' });
       starts[pt.key || pt.no] = { from: pageNo, count: pp.length };
       pp.forEach(push);
     });
@@ -324,8 +324,15 @@
 .blank .bl{position:absolute;top:120mm;left:0;right:0;text-align:center;font-family:"DFKai-SB","標楷體",serif;font-size:48pt}
 .para{position:absolute;left:18mm;width:174mm;margin:0;font-size:12pt;line-height:7.2mm;text-align:justify}`;
   function bookCSS(scope) { return CSS_RULES.split('\n').map(r => r.trim() ? r.replace(/(^|\})([^{}@]+)\{/g, (m0, a, sel) => a + sel.split(',').map(x => scope + ' ' + x.trim()).join(',') + '{') : '').join('\n') + `\n${scope} *{box-sizing:border-box}`; }
-  const CSS = '@page{size:A4;margin:0}\nbody{margin:0;background:#888}\n@media print{body{background:#fff}.bk .pg{margin:0}}\n' + bookCSS('.bk');
-  function htmlDoc(pages, title) { return `<!doctype html><html lang="zh-Hant-TW"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS}</style></head><body><div class="bk">${pages.join('\n')}</div></body></html>`; }
+  const CSS = '@page{size:A4;margin:0}\nbody{margin:0;background:#888;padding:6mm 0}\n'
+    + '.bk.duplex{display:grid;grid-template-columns:210mm 210mm;justify-content:center;column-gap:3mm}.bk.duplex .pg{margin:0 0 6mm}.bk .ph{width:210mm;height:297mm}.bk:not(.duplex) .ph{display:none}\n'
+    + '@media print{body{background:#fff;padding:0}.bk.duplex{display:block}.bk .pg{margin:0}.bk .ph{display:none}}\n' + bookCSS('.bk');
+  // opt.duplex：雙面（對頁並排檢視；起始頁為奇數時左側留空位，讓偶數頁在左、奇數頁在右）
+  function htmlDoc(pages, title, opt) {
+    opt = opt || {}; const duplex = opt.duplex !== false;
+    const ph = duplex && (opt.startPage || 1) % 2 === 1 ? '<div class="ph"></div>' : '';
+    return `<!doctype html><html lang="zh-Hant-TW"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${CSS}</style></head><body><div class="bk${duplex ? ' duplex' : ''}" data-mode="${duplex ? 'duplex' : 'simplex'}">${ph}${pages.join('\n')}</div></body></html>`;
+  }
 
   // ---------- Excel ----------
   const MM2CH = 1 / 2.12;
