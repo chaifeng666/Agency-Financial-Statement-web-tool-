@@ -96,8 +96,18 @@ body:not(.simple) .simple-only{display:none!important}
     <!-- 步驟 1 -->
     <section class="card step" data-step="1">
       <h2>步驟一　載入檔案</h2>
-      <p class="lead simple-only">載入本年度系統產製檔，只處理<b>有上傳的書表</b>；沒有上傳的表不會出現在後面的步驟。格式用內建的 113 年度規格，也可以匯入去年匯出的規格檔。</p>
+      <p class="lead simple-only">載入本年度系統產製檔與以往年度範本（PDF 或 .xlsx），只處理<b>有上傳的書表</b>；沒有上傳的表不會出現在後面的步驟。可以用下方「一次選取全部檔案」同時多選系統檔與範本檔，工具會自動分類。</p>
       <p class="lead full-only">系統產製檔提供數字。範本可擇一或兩者都載入：<b>PDF</b> 提供列印版面格式、總說明與立法院決議辦理情形文字；<b>.xlsx</b> 提供 Excel 套版格式。都不載入時，格式用內建的 113 年度規格。</p>
+      <div class="drop" id="dropAll" style="margin-bottom:14px;border-color:var(--accent)">
+        <h3>一次選取全部檔案（系統產製檔＋範本檔，可多選或拖曳）</h3>
+        <div class="hint">檔名符合「年度_表號_表名_時間」的 .xls 當系統檔；.pdf 當範本 PDF；其他 .xlsx 當範本 Excel。</div>
+        <div class="inline">
+          <input type="file" id="fAll" accept=".xls,.xlsx,.pdf" multiple>
+          <button class="btn" id="btnAllDir" type="button">選資料夾…</button>
+          <input type="file" id="fAllDir" webkitdirectory multiple class="hidden">
+        </div>
+        <div id="allInfo" class="hint"></div>
+      </div>
       <div class="grid2">
         <div class="drop" id="dropSys">
           <h3>① 本年度系統產製檔（.xls，可多選）<span class="chip c-ng" style="margin-left:6px">必要</span></h3>
@@ -109,17 +119,17 @@ body:not(.simple) .simple-only{display:none!important}
           </div>
           <div id="sysInfo" class="hint"></div>
         </div>
-        <div class="drop full-only" id="dropPdf">
+        <div class="drop" id="dropPdf">
           <h3>② 範本：以往年度決算書 PDF<span class="chip c-mute" style="margin-left:6px">選用</span></h3>
           <div class="hint">例：113年度單位決算.pdf。工具會辨認每頁屬於哪張表，並擷取總說明與 #41 文字供編修。</div>
-          <div><input type="file" id="fPdf" accept=".pdf"></div>
+          <div><input type="file" id="fPdf" accept=".pdf,.xlsx" multiple></div>
           <div id="pdfInfo" class="hint"></div>
         </div>
       </div>
-      <div class="drop full-only" id="dropTpl" style="margin-top:14px">
+      <div class="drop" id="dropTpl" style="margin-top:14px">
         <h3>③ 範本：以往年度定稿 .xlsx<span class="chip c-mute" style="margin-left:6px">選用</span></h3>
         <div class="hint">例：112年度決算書表.xlsx。載入後步驟七可另外產出「套用此範本格式」的 Excel（沿用範本的欄寬、字型、框線、列印設定與頁首頁尾，年度字樣自動更新）。</div>
-        <div><input type="file" id="fTpl" accept=".xlsx"></div>
+        <div><input type="file" id="fTpl" accept=".xlsx,.pdf" multiple></div>
         <div id="tplInfo" class="hint"></div>
       </div>
       <ul class="files" id="sysList"></ul>
@@ -162,6 +172,7 @@ body:not(.simple) .simple-only{display:none!important}
         <div class="scroll" style="max-height:82vh;overflow:auto"><table class="t fmt-t" id="fmtTable"><thead><tr><th>表號</th><th>表名／版面</th></tr></thead><tbody></tbody></table></div>
         <div>
           <div id="fmtEd" class="fmt-ed"><div class="callout info" style="margin:0">點左邊的表開始檢視或修改格式。</div></div>
+          <div id="tplRefWrap" class="hidden"><div class="hint" id="tplRefCap" style="font-size:13px;color:var(--ink2);margin:12px 0 6px"></div><div class="pvbox" id="tplRef" style="display:flex;gap:8px;justify-content:center"></div></div>
           <div class="hint" id="fmtPvCap" style="font-size:13px;color:var(--ink2);margin:12px 0 6px"></div><div class="pvbox" id="fmtPv"></div>
         </div>
       </div>
@@ -238,7 +249,7 @@ body:not(.simple) .simple-only{display:none!important}
       <div id="bookToc"></div>
       <div class="pvbox hidden" id="bookPv" style="height:70vh"></div>
       <h4 class="grp">B　Excel</h4>
-      <div class="radio full-only"><label><input type="radio" name="xmode" value="spec" checked> 依格式規格產生（每表一工作表，欄寬、字型、對頁分頁同列印版面）</label><label><input type="radio" name="xmode" value="tpl" id="xmodeTpl"> 套用範本 .xlsx 格式（步驟一載入的以往年度定稿）</label></div>
+      <div class="radio"><label><input type="radio" name="xmode" value="spec" checked> 依格式規格產生（每表一工作表，欄寬、字型、對頁分頁同列印版面）</label><label><input type="radio" name="xmode" value="tpl" id="xmodeTpl"> 套用範本 .xlsx 格式（步驟一載入的以往年度定稿）</label></div>
       <div class="radio"><label><input type="checkbox" id="withCheck" checked> 附加「核對結果」工作表（<span class="full-only">含勾稽、</span>各步驟確認時間、編修紀錄）</label></div>
       <div class="actions" style="justify-content:flex-start;margin:0 0 8px"><button class="btn primary" id="btnXlsx">產生並下載 .xlsx</button><span class="note" id="xlsxMsg" style="margin:0"></span></div>
       <div class="full-only">
@@ -286,11 +297,11 @@ body:not(.simple) .simple-only{display:none!important}
   <h2>決算書表編製標準作業流程（簡易版）</h2>
   <p class="lead">只處理有上傳的系統產製書表；沒有上傳的表不進入後續程序。</p>
   <ol>
-    <li><b>載入</b>：選本年度系統產製的 .xls（檔名不要改，.7z 先解壓縮）。可匯入去年匯出的規格檔沿用格式。</li>
+    <li><b>載入</b>：用「一次選取全部檔案」同時選本年度系統產製的 .xls（檔名不要改，.7z 先解壓縮）與以往年度範本（定稿 PDF、定稿 .xlsx），工具自動分類。可匯入去年匯出的規格檔沿用格式。</li>
     <li><b>表名對照</b>：確認哪些表有上傳；未上傳的表本次不處理。</li>
-    <li><b>格式</b>：逐表檢視並修改對頁／單頁、標題、欄寬、字級，看預覽確認；完成後「匯出規格檔」留給明年。</li>
+    <li><b>格式</b>：逐表對照範本 PDF 頁面，修改對頁／單頁、標題、欄寬、字級，看本年度預覽確認；完成後「匯出規格檔」留給明年。</li>
     <li><b>編修內容</b>：系統值原則上不改；確需調整只改明細，合計與比率自動重算，修改紀錄寫入 Excel。</li>
-    <li><b>產出</b>：產生列印版面（可列印／存 PDF）與 Excel，逐頁檢視分頁與頁碼。</li>
+    <li><b>產出</b>：產生列印版面（可列印／存 PDF）與 Excel（依格式規格，或套用範本 .xlsx 格式），只含上傳的書表；逐頁檢視分頁與頁碼。</li>
   </ol>
   <p style="font-size:13px;color:var(--ink2)">需要總說明、#12、#19、#38、#41、表間勾稽、公告檔或格式 1～5 時，請改用完整版（index.html）。</p>
 </div>
@@ -382,10 +393,10 @@ const SIMPLE = !!window.__SIMPLE__;
 if (SIMPLE) {
   document.body.classList.add('simple'); document.title = '決算書表編製工具（簡易版）';
   document.querySelector('header h1').textContent = '決算書表編製工具　簡易版';
-  document.querySelector('header .sub').textContent = '只處理上傳的系統產製書表：格式編修 → 內容編修 → 列印版面／Excel（單機作業，資料不離開本機）';
+  document.querySelector('header .sub').textContent = '系統產製書表＋以往年度範本（PDF／xlsx）→ 格式編修 → 內容編修 → 列印版面／Excel，只處理上傳的書表（單機作業，資料不離開本機）';
   const li7 = document.querySelector('#stepper li[data-step="7"]'); li7.querySelector('.dot').textContent = '5'; li7.querySelector('small').textContent = '列印版面、Excel';
   document.querySelector('section[data-step="7"] h2').textContent = '步驟五　產出';
-  document.querySelector('#stepper li[data-step="1"] small').textContent = '本年度系統產製檔';
+  document.querySelector('#stepper li[data-step="1"] small').textContent = '系統檔＋範本 PDF／xlsx';
   document.getElementById('back7').dataset.back = '4';
 }
 const S = { tplWb: null, tplBuf: null, tplName: '', bookHtml: null, spec: clone(SPEC0), specName: '內建 113 年度規格', files: [], an: null, anE: null, pdf: null, scan: null, imp: null, models: {}, keys: [], cur: null,
@@ -446,7 +457,7 @@ async function loadPdf(f){
     if (rg['0']) imp.sm = await PDF.importSummary(doc, rg['0'].from, rg['0'].to);
     if (rg['41']) imp.r41 = await PDF.import41(doc, rg['41'].from, rg['41'].to);
     const found = S.spec.tables.filter(t => rg[t.no]).length;
-    S.pdf = { name: f.name, pages: doc.numPages }; S.scan = sc; S.imp = imp;
+    S.pdf = { name: f.name, pages: doc.numPages }; S.pdfDoc = doc; F3.refNo = null; S.scan = sc; S.imp = imp;
     // 從總說明首頁取機關名稱
     if (rg['0']) { const pl = await PDF.pageLines(doc, rg['0'].from); const ag = pl.lines.map(l => l.text.replace(/\s/g,'')).find(t => /(院|部|會|署|處|局|總處)$/.test(t) && t.length <= 16); if (ag) $('#agency').value = ag; }
     let y = null; for (let p = 1; p <= Math.min(6, doc.numPages) && !y; p++) { const pl = await PDF.pageLines(doc, p); const t = pl.lines.map(l => l.text.replace(/\s/g,'')).join('|'); const m = t.match(/中華民國(\d{2,3})年度/); if (m) y = +m[1]; }
@@ -463,7 +474,7 @@ function refresh1(){
 $('#fSys').onchange = e => loadSys(e.target.files);
 $('#btnDir').onclick = () => $('#fDir').click();
 $('#fDir').onchange = e => loadSys(e.target.files);
-$('#fPdf').onchange = e => e.target.files[0] && loadPdf(e.target.files[0]);
+$('#fPdf').onchange = e => routeFiles(e.target.files);
 async function loadTpl(f){
   $('#tplInfo').textContent = '讀取中…';
   try {
@@ -473,8 +484,26 @@ async function loadTpl(f){
   } catch (e) { S.tplWb = null; S.tplBuf = null; $('#tplInfo').innerHTML = `<span class="chip c-ng">讀取失敗</span> ${esc(e.message)}`; }
   refresh1();
 }
-$('#fTpl').onchange = e => e.target.files[0] && loadTpl(e.target.files[0]);
-[['#dropSys', fs => loadSys(fs)], ['#dropPdf', fs => fs[0] && loadPdf(fs[0])], ['#dropTpl', fs => fs[0] && loadTpl(fs[0])]].forEach(([id, fn]) => {
+// 多選檔案自動分類：系統檔／範本 PDF／範本 xlsx
+async function routeFiles(list){
+  const arr = Array.from(list || []);
+  const sys = arr.filter(f => /\.xlsx?$/i.test(f.name) && C.parseSysName(f.name));
+  const pdfs = arr.filter(f => /\.pdf$/i.test(f.name));
+  const tpls = arr.filter(f => /\.xlsx$/i.test(f.name) && !C.parseSysName(f.name));
+  const other = arr.length - sys.length - pdfs.length - tpls.length;
+  const msg = [`系統檔 ${sys.length} 個`, `範本 PDF ${pdfs.length} 個`, `範本 xlsx ${tpls.length} 個`].concat(other ? [`無法辨識 ${other} 個`] : []);
+  if (pdfs.length > 1) msg.push(`PDF 只用第一個：${pdfs[0].name}`);
+  if (tpls.length > 1) msg.push(`範本 xlsx 只用第一個：${tpls[0].name}`);
+  $('#allInfo').textContent = msg.join('；');
+  if (sys.length) await loadSys(sys);
+  if (tpls.length) await loadTpl(tpls[0]);
+  if (pdfs.length) await loadPdf(pdfs[0]);
+}
+$('#fAll').onchange = e => routeFiles(e.target.files);
+$('#btnAllDir').onclick = () => $('#fAllDir').click();
+$('#fAllDir').onchange = e => routeFiles(e.target.files);
+$('#fTpl').onchange = e => routeFiles(e.target.files);
+[['#dropAll', routeFiles], ['#dropSys', routeFiles], ['#dropPdf', routeFiles], ['#dropTpl', routeFiles]].forEach(([id, fn]) => {
   const el = $(id);
   el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('on'); });
   el.addEventListener('dragleave', () => el.classList.remove('on'));
@@ -712,7 +741,26 @@ function bindFmt(t, ci){
   $('#f3Reset').onclick = () => { const o = spec0Of(t.no); if (!o) return; Object.keys(t).forEach(k => delete t[k]); Object.assign(t, clone(o)); fmtEditor(); renderFmt(); schedulePv(); $('#fmtMsg').textContent = `#${t.no} 已還原`; };
 }
 function schedulePv(){ clearTimeout(F3.timer); F3.timer = setTimeout(fmtPreview, 350); }
-function fmtPreview(){ if (!F3.cur) return; previewTable(F3.cur, '#fmtPv', 2); $('#fmtPvCap').textContent = `#${F3.cur} 版面預覽（前 2 頁，縮小顯示；修改後自動更新）`; }
+function fmtPreview(){ if (!F3.cur) return; previewTable(F3.cur, '#fmtPv', 2); $('#fmtPvCap').textContent = `#${F3.cur} 本年度版面預覽（前 2 頁，縮小顯示；修改後自動更新）`; tplRef(F3.cur); }
+// 範本 PDF 對照：顯示該表在範本中的前 2 頁
+async function tplRef(no){
+  const wrap = $('#tplRefWrap'), box = $('#tplRef');
+  const rg = S.scan && S.scan.ranges[no];
+  if (!S.pdfDoc || !rg) { wrap.classList.add('hidden'); return; }
+  if (F3.refNo === no) { wrap.classList.remove('hidden'); return; }
+  F3.refNo = no; wrap.classList.remove('hidden'); box.innerHTML = '<span style="color:#fff">載入範本頁面…</span>';
+  const pages = []; for (let p = rg.from; p <= Math.min(rg.to, rg.from + 1); p++) pages.push(p);
+  $('#tplRefCap').textContent = `#${no} 範本對照：${S.pdf.name} 第 ${pages.join('、')} 頁（PDF 頁碼）`;
+  const w = ((box.clientWidth > 200 ? box.clientWidth : 760) - 40) / pages.length;
+  const cvs = [];
+  for (const p of pages) {
+    const page = await S.pdfDoc.getPage(p); const vp0 = page.getViewport({ scale: 1 }); const sc = w / vp0.width; const vp = page.getViewport({ scale: sc * (window.devicePixelRatio || 1) });
+    const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height; c.style.width = (vp.width / (window.devicePixelRatio || 1)) + 'px'; c.style.background = '#fff';
+    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise; cvs.push(c);
+  }
+  if (F3.refNo !== no) return;
+  box.innerHTML = ''; cvs.forEach(c => box.appendChild(c));
+}
 $('#specResetAll').onclick = () => {
   S.spec.tables.forEach(t => { const o = spec0Of(t.no); if (o) { Object.keys(t).forEach(k => delete t[k]); Object.assign(t, clone(o)); } });
   S.specEdited = false; S.specName = S.specName.replace(/（已修改）$/, ''); renderFmt(); if (F3.cur) { fmtEditor(); fmtPreview(); } $('#fmtMsg').textContent = '已全部還原為內建格式';
@@ -1091,7 +1139,7 @@ async function xlsxFromTpl(btn){
     checks.push({ id: '—', group: '作業紀錄', title: '各步驟確認', ok: true, items: S.confirms.map(c => ['步驟' + c[0] + '（' + c[2] + '）' + c[1]]), extra: '' });
     const eds = M.editSummary(S.keys.map(k => S.models[k])).filter(e => !e.auto);
     if (eds.length) checks.push({ id: '—', group: '作業紀錄', title: '系統值編修紀錄', ok: true, items: eds.map(e => [`#${e.no} 第 ${e.r + 1} 列／${e.label || ('第' + (e.c + 1) + '欄')}：${fmt(e.sys)} → ${fmt(e.cur)}`]), extra: '' });
-    const res = await C.generate(XLSX, ExcelJS, S.tplWb, S.anE, { checks, r38: Rr, no12: S.r12 === 'none', withCheckSheet: $('#withCheck').checked, JSZip: window.JSZip, tplBuf: S.tplBuf });
+    const res = await C.generate(XLSX, ExcelJS, S.tplWb, S.anE, { onlySys: SIMPLE, checks, r38: Rr, no12: S.r12 === 'none', withCheckSheet: $('#withCheck').checked, JSZip: window.JSZip, tplBuf: S.tplBuf });
     const name = ($('#outPrefix').value || 'output') + '_套範本格式.xlsx';
     dl(new Blob([res.buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), name);
     const miss = res.log.filter(l => /缺系統檔/.test(l[1])).length;

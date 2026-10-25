@@ -577,9 +577,10 @@
       if (n >= 22 && n <= 36) {
         const det = (analysis.details || []).find(d => d.tplSheet === name);
         if (det) { const d = out.addWorksheet(name); const info = buildFromSys(XLSX, det.ws, ws, d, rep); log.push([name, '系統檔＋範本格式', info]); }
-        else log.push([name, '略過（本年度不輸出）']);
+        else log.push([name, opts.onlySys ? '略過（未上傳）' : '略過（本年度不輸出）']);
         continue;
       }
+      if (opts.onlySys && !analysis.sys[no]) { log.push([name, '略過（未上傳）']); continue; }
       if (MODE[no] === 'copy') { const d = out.addWorksheet(name); copyWholeSheet(ws, d, rep); log.push([name, '照抄範本']); continue; }
       if (no === '12') { const d = out.addWorksheet(name); build12(ws, d, rep, !no12); log.push([name, no12 ? '本年度無' : '待人工編製']); continue; }
       if (no === '38') { const d = out.addWorksheet(name); build38(ws, d, rep, R); log.push([name, '自動推算']); continue; }
@@ -589,7 +590,7 @@
       const info = buildFromSys(XLSX, s.ws, ws, d, rep);
       log.push([name, '系統檔＋範本格式', info]);
     }
-    if (opts.checks && opts.withCheckSheet !== false) addCheckSheet(out, opts.checks, R);
+    if (opts.checks && opts.withCheckSheet !== false) addCheckSheet(out, opts.checks, opts.onlySys ? null : R);
     let buf = await out.xlsx.writeBuffer();
     if (opts.JSZip && opts.tplBuf) buf = await fixDefaultFont(opts.JSZip, buf, opts.tplBuf);
     return { buf, log, R };
