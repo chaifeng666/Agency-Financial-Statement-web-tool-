@@ -1,0 +1,8 @@
+# 機關資料不進版控
+*.xls
+*.7z
+*.pdf
+*.zip
+決算*.xlsx
+*年度*.xlsx
+node_modules/

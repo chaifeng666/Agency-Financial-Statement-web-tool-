@@ -1,0 +1,14 @@
+{
+  "name": "exceljs-bundle",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "buffer": "^6.0.3",
+    "esbuild": "^0.23.1",
+    "events": "^3.3.0",
+    "exceljs": "4.4.0",
+    "jszip": "3.10.1",
+    "process": "^0.11.10",
+    "readable-stream": "^3.6.2"
+  }
+}

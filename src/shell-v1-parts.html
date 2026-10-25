@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>決算書表套版工具</title>
+<style>
+:root{
+  --paper:#f6f4ef; --card:#ffffff; --ink:#1f2328; --ink2:#59606b; --line:#dcd8cf; --line2:#ebe8e1;
+  --accent:#1d5c63; --accent-weak:#e3efef; --ok:#1b7f3b; --ok-weak:#e6f3ea; --ng:#b3261e; --ng-weak:#fbe9e7;
+  --warn:#8a5a00; --warn-weak:#fdf3dc; --info:#36518a; --info-weak:#e8edf7;
+  --mono:"Consolas","Menlo","Noto Sans Mono",monospace;
+  --sans:"Microsoft JhengHei","微軟正黑體","PingFang TC","Noto Sans TC","Heiti TC",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6}
+header{background:var(--ink);color:#fff;padding:18px 28px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0;letter-spacing:.06em;font-weight:700}
+header .sub{color:#c9ccd1;font-size:13px}
+nav.tabs{display:flex;gap:4px;padding:0 28px;background:var(--ink)}
+nav.tabs button{background:none;border:0;color:#c9ccd1;padding:10px 16px;font:inherit;cursor:pointer;border-bottom:3px solid transparent}
+nav.tabs button[aria-selected=true]{color:#fff;border-bottom-color:#7fc4c9}
+main{max-width:1180px;margin:0 auto;padding:24px 20px 80px}
+.layout{display:grid;grid-template-columns:230px 1fr;gap:24px;align-items:start}
+.layout > div{min-width:0}
+#pvSel{flex:2}
+@media (max-width:860px){.layout{grid-template-columns:1fr}.stepper{position:static!important;display:flex;overflow-x:auto}.stepper li{min-width:150px}}
+.stepper{list-style:none;margin:0;padding:0;position:sticky;top:16px}
+.stepper li{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:8px;cursor:pointer;color:var(--ink2)}
+.stepper li[aria-disabled=true]{cursor:not-allowed;opacity:.5}
+.stepper li.cur{background:var(--card);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.stepper .dot{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--line2);color:var(--ink2)}
+.stepper li.cur .dot{background:var(--accent);color:#fff}
+.stepper li.done .dot{background:var(--ok);color:#fff}
+.stepper b{display:block;font-size:14px}
+.stepper small{display:block;font-size:12px;line-height:1.4}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-bottom:18px}
+section.card h2{margin:0 0 4px;font-size:18px}
+.lead{color:var(--ink2);margin:0 0 16px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;background:#fbfaf7;display:grid;gap:8px}
+.drop.on{border-color:var(--accent);background:var(--accent-weak)}
+.drop h3{margin:0;font-size:15px}
+.drop .hint{font-size:13px;color:var(--ink2)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.grid2{grid-template-columns:1fr}}
+button.btn{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 16px;border-radius:7px;cursor:pointer}
+button.btn:hover{border-color:var(--ink2)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{filter:brightness(1.08)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;align-items:center}
+.actions .note{margin-right:auto;font-size:13px;color:var(--ink2)}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th,table.t td{border-bottom:1px solid var(--line2);padding:7px 8px;text-align:left;vertical-align:top}
+table.t th{font-size:12px;color:var(--ink2);font-weight:600;background:#faf9f6;position:sticky;top:0}
+table.t td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.scroll{overflow-x:auto}
+.chip{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.c-ok{background:var(--ok-weak);color:var(--ok)}.c-ng{background:var(--ng-weak);color:var(--ng)}
+.c-warn{background:var(--warn-weak);color:var(--warn)}.c-info{background:var(--info-weak);color:var(--info)}
+.c-mute{background:var(--line2);color:var(--ink2)}
+.files{font-size:13px;color:var(--ink2);max-height:150px;overflow:auto;margin:0;padding-left:18px}
+.summary{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 14px}
+.stat{background:#faf9f6;border:1px solid var(--line2);border-radius:8px;padding:8px 14px;min-width:120px}
+.stat b{display:block;font-size:22px;line-height:1.2;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--ink2)}
+.rule{border:1px solid var(--line2);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.rule > summary{list-style:none;cursor:pointer;display:flex;gap:10px;align-items:center;padding:9px 12px}
+.rule > summary::-webkit-details-marker{display:none}
+.rule .light{flex:none;width:12px;height:12px;border-radius:50%}
+.rule.ok .light{background:var(--ok)}.rule.ng .light{background:var(--ng)}
+.rule.ng{border-color:#efc2bd;background:#fffafa}
+.rule .rid{font-family:var(--mono);font-size:12px;color:var(--ink2);width:26px}
+.rule .ex{margin-left:auto;font-size:12px;color:var(--ink2)}
+.rule .body{padding:0 12px 10px 48px}
+h4.grp{margin:16px 0 8px;font-size:13px;color:var(--ink2);letter-spacing:.08em}
+label.field{display:grid;gap:4px;font-size:13px;color:var(--ink2)}
+input[type=text],input[type=number],textarea{font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:#fff;width:100%}
+textarea{font-size:13px;min-height:190px;line-height:1.55}
+.radio{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0}
+.radio label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.callout{border-left:4px solid var(--warn);background:var(--warn-weak);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14px;margin:10px 0}
+.callout.info{border-color:var(--info);background:var(--info-weak)}
+.callout.ok{border-color:var(--ok);background:var(--ok-weak)}
+.hidden{display:none!important}
+.sop h3{margin:22px 0 6px;font-size:16px}
+.sop ol,.sop ul{margin:4px 0 8px;padding-left:22px}
+.sop li{margin:3px 0}
+.kbd{font-family:var(--mono);background:#f0eee8;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:12.5px}
+.pubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 16px;margin:8px 0;font-size:14px}
+.pubgrid label{display:flex;gap:6px;align-items:flex-start;cursor:pointer;padding:3px 0}
+.pubgrid .no{font-family:var(--mono);color:var(--ink2);min-width:2.2em}
+pre.pv{background:#1f2328;color:#e6e6e6;border-radius:8px;padding:14px;font-size:12.5px;line-height:1.5;max-height:460px;overflow:auto;white-space:pre}
+select{font:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;max-width:100%}
+.ftabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;flex-wrap:wrap}
+.ftabs button{font:inherit;background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;cursor:pointer;color:var(--ink2);display:flex;gap:6px;align-items:center}
+.ftabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.f7wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+@media (max-width:1000px){.f7wrap{grid-template-columns:minmax(0,1fr)}}
+.f7wrap.stack{grid-template-columns:minmax(0,1fr)}
+.f7form,.f7form label.field{min-width:0}
+.f7pv{position:sticky;top:12px;align-self:start}
+.f7wrap.stack .f7pv{position:static}
+.f7form{display:grid;gap:12px;align-content:start}
+.f7form h5{margin:8px 0 0;font-size:13px;color:var(--ink2)}
+.f7form textarea{min-height:110px}
+.f7form table.t input,.f7form table.t select,.f7form table.t textarea{width:100%;font-size:13px;padding:4px 6px}
+.f7form table.t textarea{min-height:54px}
+.f7form .rowbtn{font-size:12px;padding:2px 8px}
+.mdpv{border:1px solid var(--line);border-radius:8px;padding:16px 18px;background:#fff;max-height:640px;overflow:auto;font-size:13.5px}
+.mdpv h1{font-size:20px;text-align:center;margin:6px 0}.mdpv h2{font-size:17px;text-align:center;margin:6px 0}.mdpv h3{font-size:15px;margin:14px 0 6px}
+.mdpv table{border-collapse:collapse;margin:6px 0;font-size:12.5px}.mdpv td,.mdpv th{border:1px solid var(--line);padding:3px 6px;vertical-align:top}
+.mdpv td.r,.mdpv th.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mdpv blockquote{margin:8px 0;padding:6px 10px;border-left:3px solid var(--line);color:var(--ink2);font-size:12.5px}
+.mdpv p{margin:6px 0}.mdpv pre{white-space:pre-wrap;margin:0;font-size:12.5px}
+.foot{font-size:12px;color:var(--ink2);margin-top:30px;text-align:center}
+.inline{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.inline > *{flex:1;min-width:200px}
+@media print{header,nav.tabs,.stepper,.actions{display:none!important}.layout{display:block}section.card{border:0}}
+</style>
+</head>
+<body>
+<header>
+  <h1>決算書表套版工具</h1>
+  <span class="sub">系統產製 .xls ＋ 以往年度定稿格式 → 新年度決算書表（單機作業，資料不離開本機）</span>
+</header>
+<nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-tab="work">作業</button>
+  <button role="tab" aria-selected="false" data-tab="sop">標準作業流程</button>
+  <button role="tab" aria-selected="false" data-tab="sbom">元件清單（SBOM）</button>
+</nav>
+
+<main>
+<!-- ================= 作業 ================= -->
+<div id="tab-work" class="layout">
+  <ol class="stepper" id="stepper">
+    <li data-step="1"><span class="dot">1</span><span><b>載入檔案</b><small>範本＋系統產製檔</small></span></li>
+    <li data-step="2"><span class="dot">2</span><span><b>表名對照</b><small>確認每張表的來源</small></span></li>
+    <li data-step="3"><span class="dot">3</span><span><b>內容核對</b><small>18 條表間勾稽</small></span></li>
+    <li data-step="4"><span class="dot">4</span><span><b>缺檔表處理</b><small>#12 判斷、#38 推算</small></span></li>
+    <li data-step="5"><span class="dot">5</span><span><b>產生報表</b><small>套格式、下載</small></span></li>
+    <li data-step="6"><span class="dot">6</span><span><b>對外公告檔</b><small>XML／MD，每表一檔</small></span></li>
+    <li data-step="7"><span class="dot">7</span><span><b>格式 1～5</b><small>封面、目次、總說明…</small></span></li>
+  </ol>
+
+  <div>
+    <!-- 步驟 1 -->
+    <section class="card step" data-step="1">
+      <h2>步驟一　載入檔案</h2>
+      <p class="lead">選擇「以往年度定稿」當格式範本，再選本年度系統產製的全部 .xls（系統下載的 .7z 請先解壓縮）。</p>
+      <div class="grid2">
+        <div class="drop" id="dropTpl">
+          <h3>① 範本（以往年度定稿 .xlsx）</h3>
+          <div class="hint">例：112年度決算書表_v1.xlsx</div>
+          <div><input type="file" id="fTpl" accept=".xlsx"></div>
+          <div id="tplInfo" class="hint"></div>
+        </div>
+        <div class="drop" id="dropSys">
+          <h3>② 本年度系統產製檔（.xls，可多選）</h3>
+          <div class="hint">檔名格式：114_表號_表名_時間.xls。也可直接拖曳整個資料夾的檔案進來。</div>
+          <div class="inline">
+            <input type="file" id="fSys" accept=".xls,.xlsx" multiple>
+            <button class="btn" id="btnDir" type="button">選資料夾…</button>
+            <input type="file" id="fDir" webkitdirectory multiple class="hidden">
+          </div>
+          <div id="sysInfo" class="hint"></div>
+        </div>
+      </div>
+      <ul class="files" id="sysList"></ul>
+      <div id="s1msg"></div>
+      <div class="actions"><span class="note" id="s1note">兩項都載入後才能繼續</span><button class="btn primary" id="ok1" disabled>確認，下一步：表名對照</button></div>
+    </section>
+
+    <!-- 步驟 2 -->
+    <section class="card step hidden" data-step="2">
+      <h2>步驟二　表名對照</h2>
+      <p class="lead">依檔名中的表號自動對應範本工作表。請確認每一列的處理方式。</p>
+      <div class="summary" id="s2sum"></div>
+      <div class="scroll"><table class="t" id="mapTable"><thead><tr><th>表號</th><th>表名</th><th>範本工作表</th><th>本年度系統檔</th><th>處理方式</th></tr></thead><tbody></tbody></table></div>
+      <div class="actions"><button class="btn" data-back="1">上一步</button><button class="btn primary" id="ok2">確認對照，下一步：內容核對</button></div>
+    </section>
+
+    <!-- 步驟 3 -->
+    <section class="card step hidden" data-step="3">
+      <h2>步驟三　內容核對</h2>
+      <p class="lead">檢查各表之間應該相等的數字。點任一規則可展開比對明細。不符時仍可繼續，但結果會寫進輸出檔的「核對結果」工作表備查。</p>
+      <div class="summary" id="s3sum"></div>
+      <div id="rules"></div>
+      <div class="actions"><span class="note" id="s3note"></span><button class="btn" data-back="2">上一步</button><button class="btn primary" id="ok3">確認核對結果，下一步</button></div>
+    </section>
+
+    <!-- 步驟 4 -->
+    <section class="card step hidden" data-step="4">
+      <h2>步驟四　缺檔表處理</h2>
+      <p class="lead">系統沒有產製的兩張表：#12 依 #4 判斷有無；#38 依各表數字推算，請核對並補上無法自動取得的數字。</p>
+
+      <h4 class="grp">#12 歲出賸餘（或減免、註銷）分析表</h4>
+      <div id="s12info"></div>
+      <div class="radio">
+        <label><input type="radio" name="r12" value="none"> 輸出「本年度無歲出賸餘（或減免、註銷）數」</label>
+        <label><input type="radio" name="r12" value="manual"> 保留表頭，之後人工編製</label>
+      </div>
+
+      <h4 class="grp">#38 決算與會計收支對照表</h4>
+      <div class="inline">
+        <label class="field">購置設備及電腦軟體未達財產標準數（元）
+          <input type="text" id="unmet" inputmode="numeric">
+        </label>
+        <div class="hint" id="unmetHint" style="font-size:13px;color:var(--ink2)"></div>
+      </div>
+      <div id="r38checks" style="margin:12px 0"></div>
+      <div class="scroll"><table class="t" id="t38"><thead><tr><th>預算項目</th><th style="text-align:right">決算數</th><th style="text-align:right">調整數</th><th style="text-align:right">會計收支</th><th>會計科目</th></tr></thead><tbody></tbody></table></div>
+      <label class="field" style="margin-top:14px">備註文字（可直接修改；改了上面的金額會重新產生）
+        <textarea id="note38"></textarea>
+      </label>
+      <div class="actions"><button class="btn" data-back="3">上一步</button><button class="btn primary" id="ok4">確認，下一步：產生報表</button></div>
+    </section>
+
+    <!-- 步驟 5 -->
+    <section class="card step hidden" data-step="5">
+      <h2>步驟五　產生報表</h2>
+      <p class="lead">內容、列數、合併儲存格照系統檔；欄寬、字型、框線、列印設定、頁首頁尾照範本，年度字樣自動更新。</p>
+      <div class="inline">
+        <label class="field">輸出檔名<input type="text" id="outName"></label>
+      </div>
+      <div class="radio"><label><input type="checkbox" id="withCheck" checked> 附加「核對結果」工作表（含各步驟確認時間）</label></div>
+      <div class="actions"><span class="note" id="s5note"></span><button class="btn" data-back="4">上一步</button><button class="btn primary" id="btnGen">產生並下載 .xlsx</button><button class="btn" id="to6">下一步：對外公告檔</button><button class="btn" id="to7">格式 1～5</button></div>
+      <div id="genResult"></div>
+    </section>
+
+    <!-- 步驟 6 -->
+    <section class="card step hidden" data-step="6">
+      <h2>步驟六　產製對外公告檔</h2>
+      <p class="lead">用同一份已核對的數字，每張表產出一個 XML（英文標籤，給系統讀）和一個 MD（給網站公告、人看）。打包成 zip，附目錄與每個檔案的 SHA-256 雜湊值。</p>
+      <div class="radio" style="justify-content:space-between">
+        <label><input type="checkbox" id="pubMask" checked> #17 出國人員姓名遮蔽（例：王○明）</label>
+        <span><button class="btn" id="pubAll" type="button">全選</button> <button class="btn" id="pubNone" type="button">全不選</button></span>
+      </div>
+      <div class="pubgrid" id="pubList"></div>
+      <div class="actions"><span class="note" id="s6note"></span><button class="btn" data-back="5">上一步</button><button class="btn" id="to7b">格式 1～5</button><button class="btn primary" id="btnPub">產生並下載公告檔 .zip</button></div>
+      <div id="pubResult"></div>
+      <div id="pubPreview" class="hidden">
+        <h4 class="grp">預覽</h4>
+        <div class="inline" style="margin-bottom:8px">
+          <select id="pvSel"></select>
+          <span class="radio" style="margin:0"><label><input type="radio" name="pvFmt" value="md" checked> MD</label><label><input type="radio" name="pvFmt" value="xml"> XML</label></span>
+        </div>
+        <pre id="pvBox" class="pv"></pre>
+      </div>
+    </section>
+    <!-- 步驟 7 -->
+    <section class="card step hidden" data-step="7">
+      <h2>步驟七　格式 1～5（封面、封底、目次、總說明、歲入來源別決算表）</h2>
+      <p class="lead">依「中央政府決算書表之格式」格式 1～5。數字從已載入的系統檔自動帶入，文字請在下方填寫；右邊即時預覽。每個格式看過沒問題請按「確認此格式」，5 個都確認後才能下載。</p>
+      <div class="actions" style="justify-content:flex-start;margin:0 0 12px">
+        <button class="btn" id="f7Import" type="button">匯入設定檔（.json）</button>
+        <input type="file" id="f7File" accept=".json" class="hidden">
+        <button class="btn" id="f7Export" type="button">匯出設定檔</button>
+        <span class="note" id="f7msg" style="margin:0"></span>
+      </div>
+      <div class="ftabs" id="f7tabs" role="tablist"></div>
+      <div class="f7wrap">
+        <div class="f7form" id="f7form"></div>
+        <div class="f7pv">
+          <div class="radio" style="margin:0 0 6px"><label><input type="radio" name="f7v" value="html" checked> 預覽</label><label><input type="radio" name="f7v" value="md"> 原始 MD</label></div>
+          <div id="f7pv" class="mdpv"></div>
+        </div>
+      </div>
+      <div class="actions">
+        <span class="note" id="f7note"></span>
+        <button class="btn" data-back="5">上一步</button>
+        <button class="btn" id="f7One">下載此格式 .md</button>
+        <button class="btn" id="f7Ok">確認此格式</button>
+        <button class="btn primary" id="f7All" disabled>下載格式 1～5（.zip）</button>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ================= SOP ================= -->
+<section class="card sop hidden" id="tab-sop">
+  <h2>決算書表編製標準作業流程</h2>
+  <p class="lead">每年決算時依序辦理；每個步驟完成都要在工具裡按「確認」，確認時間會留在輸出檔「核對結果」工作表。</p>
+
+  <h3>一、事前準備</h3>
+  <ol>
+    <li>從會計系統下載本年度決算書表（各表 .xls，或系統打包的 .7z），<b>.7z 先解壓縮</b>。</li>
+    <li>取得「前一年度」或最近一年的決算書表定稿 .xlsx，當作格式範本（定稿以後不要再改結構）。</li>
+    <li>確認檔名開頭是年度與表號，例如 <span class="kbd">114_2_決算編制_歲出政事別決算表_…xls</span>；檔名被改掉會對不到表。</li>
+  </ol>
+
+  <h3>二、表名對照（工具步驟二）</h3>
+  <ol>
+    <li>工具依表號自動對應範本工作表。</li>
+    <li>逐列確認狀態：<span class="chip c-ok">系統檔</span> 直接套用；<span class="chip c-mute">固定頁</span>（10-1 本頁空白、19 廣宣另行 PDF）照抄；<span class="chip c-info">推算</span>（#38）；<span class="chip c-info">判斷</span>（#12）；<span class="chip c-ng">缺檔</span> 要回系統補下載。</li>
+    <li>平衡表各科目明細表（22～36）：只輸出有系統檔的科目，工具用明細表總計金額對到平衡表科目。</li>
+  </ol>
+
+  <h3>三、內容核對（工具步驟三，18 條）</h3>
+  <ul>
+    <li><b>歲入</b>：A1 歲入實現數＝繳付公庫數（#1、#8、#21、#39）；A2 #1 各款＝#21 收入科目；A3 #10 餘絀數＝#1 比較增減數。</li>
+    <li><b>歲出</b>：B1 #2＝#3 合計；B2 #9 實現數、未撥入數＝#2、#11；B3 #6 合計＝#3 扣除統籌科目；B4 以前年度實現數 #4＝#9＝#39；B5 #13 人事費＝#6；B6 #18 千元總計≒#2；B7 #4 減免（註銷）數判斷 #12。</li>
+    <li><b>財務</b>：C1 平衡表兩邊相等；C2 公庫撥入數 #9＝#21＝#39；C3 專戶存款＝現金出納表結存；C4 #37 期末帳面＝#20 成本減累計折舊；C5 #40 總值＝#37；C6 收支餘絀＝收入－支出；C7 淨資產增減＝收支餘絀＋其他影響項目；C8 財產損失、折舊、明細表與 #20 一致。</li>
+    <li>有紅燈時：先回系統查原因（多半是匯出時間不同、補登傳票後沒有重新匯出），修正後重新下載再跑一次。真的確認無誤才繼續，並在核對結果工作表註記原因。</li>
+  </ul>
+
+  <h3>四、缺檔表處理（工具步驟四）</h3>
+  <ol>
+    <li>#12：#4「本年度減免（註銷）數」為 0 就輸出「本年度無」；不為 0 要依 #4 人工編製。</li>
+    <li>#38：決算數取 #1、#6（人事費含統籌科目），會計收支取 #21，調整數＝會計收支－決算數。</li>
+    <li>業務費調整數＝未達財產標準數－本年度申請保留數（#11 經常門）＋本年度支付以前年度保留數（#39）。<b>未達財產標準數</b>請以帳上數字填入，工具會驗算是否兜得攏。</li>
+    <li>核對備註文字，必要時直接修改。</li>
+  </ol>
+
+  <h3>五、產生與覆核（工具步驟五）</h3>
+  <ol>
+    <li>產生 .xlsx 後用 Excel 開啟，逐表<b>列印預覽</b>：分頁、起始頁碼、頁首頁尾年度。</li>
+    <li>人工複核文字欄：#6 備註、#10 原因說明、#11 保留原因、#13 說明、#16 委辦備註、#17 出國備註。</li>
+    <li>範本中由人工加的額外文字（例如合計列下方的說明）不會自動帶入，請比對前一年補上。</li>
+    <li>覆核完成後另存為「○○年度決算書表定稿.xlsx」，當作下一年度的範本。</li>
+  </ol>
+
+  <h3>六、對外公告檔（工具步驟六）</h3>
+  <ol>
+    <li>勾選要公告的表（預設全部有數字的表；10-1 本頁空白、19 廣宣不產）。</li>
+    <li>#17 出國人員姓名預設遮蔽（王○明），職稱保留。</li>
+    <li>下載 zip：每張表一個 XML（英文標籤、原始數字、附欄位中文說明）和一個 MD（千分位、合計列粗體）。</li>
+    <li>上網公告前，用 index.md 裡的 SHA-256 雜湊值核對檔案沒有被改動（Windows：<span class="kbd">certutil -hashfile 檔名 SHA256</span>）。</li>
+    <li>公告檔用的是步驟五同一份數字；如果步驟五之後有人工修改 Excel 定稿，公告檔不會跟著變，請改完重新跑一次。</li>
+  </ol>
+
+  <h3>七、格式 1～5（工具步驟七）</h3>
+  <ol>
+    <li>依行政院主計總處「中央政府決算書表之格式」：格式 1 封面、2 封底、3 目次、4 總說明、5 歲入來源別決算表。</li>
+    <li>自動帶入：年度、期間、款項號（#3）、歲入歲出與以前年度執行數（#1、#3、#5）、平衡表重要科目及變動達 5 億元或 20% 以上之科目（#20）、格式 5 全表（#1）。</li>
+    <li>人工填寫：封底職名、目次分類與各表頁數（起始頁自動累計）、總說明各段原因說明、或有給付責任、施政計畫分項。</li>
+    <li>每個格式預覽無誤按「確認此格式」，5 個都確認才可下載；確認後再修改會自動取消確認。</li>
+    <li>年底完成後「匯出設定檔」保存，明年「匯入設定檔」即可沿用封面、封底、目次分類、施政計畫項目；上年度或有給付責任金額會自動移到「上年」欄。</li>
+  </ol>
+
+  <h3>八、權責分工建議</h3>
+  <ul>
+    <li><b>承辦人</b>：步驟一～五，紅燈先查明原因。</li>
+    <li><b>複核人</b>：看「核對結果」工作表與列印預覽，抽查 #2、#20、#21、#38 數字。</li>
+  </ul>
+</section>
+
+<!-- ================= SBOM ================= -->
+<section class="card hidden" id="tab-sbom">
+  <h2>元件清單（SBOM）</h2>
+  <p class="lead">本工具為單一 HTML 檔，所有元件皆內嵌、不連網。未使用中國大陸開發的元件；ExcelJS 原有的 CSV 功能相依 dayjs，已在打包時移除。</p>
+  <div class="scroll"><table class="t"><thead><tr><th>元件</th><th>版本</th><th>授權</th><th>開發者／維護者</th><th>用途</th></tr></thead><tbody>
+    <tr><td>SheetJS Community Edition（xlsx）</td><td>0.18.5</td><td>Apache-2.0</td><td>SheetJS LLC（美國）</td><td>讀取系統產製的 .xls</td></tr>
+    <tr><td>ExcelJS（自行重新打包，移除 CSV／dayjs／core-js）</td><td>4.4.0</td><td>MIT</td><td>exceljs 開源專案，原作者 Guyon Roche（澳洲）</td><td>讀取範本樣式、寫出 .xlsx</td></tr>
+    <tr><td>JSZip（含於 ExcelJS 打包內，內含 pako、lie、immediate、setimmediate）</td><td>3.10.1</td><td>MIT 或 GPL-3.0</td><td>Stuart Knightley（英國）；pako：nodeca（俄羅斯）</td><td>xlsx 壓縮檔處理</td></tr>
+    <tr><td>saxes／xmlchars</td><td>5.0.1／2.2.0</td><td>ISC／MIT</td><td>Louis-Dominique Dubeau（加拿大）</td><td>XML 解析（ExcelJS 相依）</td></tr>
+    <tr><td>readable-stream、string_decoder、events</td><td>3.6.2、1.3.0、3.3.0</td><td>MIT</td><td>Node.js 專案</td><td>串流（ExcelJS 相依）</td></tr>
+    <tr><td>uuid</td><td>8.3.2</td><td>MIT</td><td>uuidjs（美國）</td><td>ExcelJS 相依</td></tr>
+    <tr><td>buffer、ieee754、safe-buffer、base64-js</td><td>6.0.3、1.2.1、5.2.1、1.5.1</td><td>MIT／BSD-3</td><td>Feross Aboukhadijeh、T. Jameson Little（美國）</td><td>瀏覽器 Buffer</td></tr>
+    <tr><td>process、inherits、util-deprecate</td><td>0.11.10、2.0.4、1.0.2</td><td>MIT／ISC</td><td>Roman Shtylman、Isaac Schlueter、Nathan Rajlich（美國）</td><td>瀏覽器相容</td></tr>
+    <tr><td>本工具核心程式（core.js、pub.js、介面）</td><td>1.1</td><td>機關自有</td><td>—</td><td>對照、勾稽、推算、套版、公告檔 XML／MD 產製（SHA-256 用瀏覽器內建 Web Crypto）</td></tr>
+  </tbody></table></div>
+  <div class="callout">資安注意：SheetJS 0.18.5 有已公告弱點（CVE-2023-30533 讀取惡意檔案的原型污染、CVE-2024-22363 ReDoS）。本工具只讀取機關自己從會計系統下載的檔案、而且離線執行，風險低；如果資安規範要求，可以換成 SheetJS 官方網站 cdn.sheetjs.com 提供的 0.20.3 以上版本（只要替換檔案中的 xlsx 程式區塊）。</div>
+</section>
+
+<p class="foot">本工具在瀏覽器裡執行，檔案不會上傳到任何地方。建議用 Chrome 或 Edge 開啟。</p>
+</main>
+
+<script>/*__XLSX__*/</script>
+<script>/*__EXCELJS__*/</script>
+<script>/*__CORE__*/</script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+const C = window.FinalCore, fmt = C.fmt;
+const S = { tplWb:null, tplBuf:null, tplName:'', files:[], an:null, checks:null, R:null, unmet:null, noteEdited:false, step:1, done:{}, confirms:[] };
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const now = () => { const d=new Date(); return `${d.getFullYear()-1911}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+
+// ---- tabs ----
+$$('nav.tabs button').forEach(b => b.onclick = () => {
+  $$('nav.tabs button').forEach(x => x.setAttribute('aria-selected', x===b));
+  ['work','sop','sbom'].forEach(t => $('#tab-'+t).classList.toggle('hidden', t!==b.dataset.tab));
+});
+
+// ---- stepper ----
+function go(n){
+  S.step = n;
+  $$('section.step').forEach(s => s.classList.toggle('hidden', +s.dataset.step!==n));
+  $$('#stepper li').forEach(li => {
+    const k = +li.dataset.step;
+    li.classList.toggle('cur', k===n); li.classList.toggle('done', !!S.done[k] && k!==n);
+    li.setAttribute('aria-disabled', !canGo(k));
+  });
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+const canGo = k => k===1 || (k>=6 ? S.done[4] : S.done[k-1]);
+$$('#stepper li').forEach(li => li.onclick = () => { const k=+li.dataset.step; if (canGo(k)) go(k); });
+$$('[data-back]').forEach(b => b.onclick = () => go(+b.dataset.back));
+function confirmStep(k, text){ S.done[k]=true; S.confirms = S.confirms.filter(c=>c[0]!==k); S.confirms.push([k, text, now()]); }
+
+// ---- step 1: load ----
+const readBuf = f => new Promise((ok, ng) => { const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=ng; r.readAsArrayBuffer(f); });
+async function loadTpl(f){
+  $('#tplInfo').textContent = '讀取中…';
+  try{
+    const buf = await readBuf(f);
+    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+    S.tplWb = wb; S.tplBuf = buf; S.tplName = f.name;
+    const n = wb.worksheets.length;
+    $('#tplInfo').innerHTML = `<span class="chip c-ok">已載入</span> ${esc(f.name)}，共 ${n} 個工作表`;
+  }catch(e){ S.tplWb=null; $('#tplInfo').innerHTML = `<span class="chip c-ng">讀取失敗</span> ${esc(e.message)}`; }
+  refresh1();
+}
+async function loadSys(list){
+  const arr = Array.from(list).filter(f => /\.xlsx?$/i.test(f.name));
+  $('#sysInfo').textContent = `讀取中…（${arr.length} 個檔案）`;
+  const out = [], bad = [];
+  for (const f of arr){
+    const p = C.parseSysName(f.name);
+    if (!p){ bad.push(f.name); continue; }
+    try{
+      const wb = XLSX.read(await readBuf(f), {type:'array', cellStyles:true, cellNF:true});
+      out.push({name:f.name, sheet: wb.Sheets[wb.SheetNames[0]], p});
+    }catch(e){ bad.push(f.name+'（讀取失敗）'); }
+  }
+  // 同表號留時間最新的
+  const by = {}; out.forEach(o => { const k=o.p.no+'|'+o.p.title; if(!by[k] || by[k].p.stamp < o.p.stamp) by[k]=o; });
+  S.files = Object.values(by).sort((a,b)=>(+a.p.no)-(+b.p.no));
+  const years = [...new Set(S.files.map(f=>f.p.year))];
+  $('#sysList').innerHTML = S.files.map(f => `<li>#${esc(f.p.no)} ${esc(f.p.title)}　<span style="opacity:.6">${esc(f.p.year)}年度</span></li>`).join('');
+  let msg = `<span class="chip ${S.files.length?'c-ok':'c-ng'}">${S.files.length} 個系統檔</span>`;
+  if (years.length>1) msg += ` <span class="chip c-ng">年度不一致：${years.join('、')}</span>`;
+  if (bad.length) msg += ` <span class="chip c-warn">${bad.length} 個檔名無法辨識</span> <span title="${esc(bad.join('\n'))}">${esc(bad.slice(0,3).join('、'))}${bad.length>3?'…':''}</span>`;
+  $('#sysInfo').innerHTML = msg;
+  refresh1();
+}
+function refresh1(){
+  const ok = S.tplWb && S.files.length;
+  $('#ok1').disabled = !ok;
+  $('#s1note').textContent = ok ? '' : '兩項都載入後才能繼續';
+  S.done = {}; // 重新載入就要重新確認後續步驟
+  go(1);
+}
+$('#fTpl').onchange = e => e.target.files[0] && loadTpl(e.target.files[0]);
+$('#fSys').onchange = e => loadSys(e.target.files);
+$('#btnDir').onclick = () => $('#fDir').click();
+$('#fDir').onchange = e => loadSys(e.target.files);
+[['#dropTpl', fs => fs[0] && loadTpl(fs[0])], ['#dropSys', fs => loadSys(fs)]].forEach(([id, fn]) => {
+  const el = $(id);
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('on'); });
+  el.addEventListener('dragleave', () => el.classList.remove('on'));
+  el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('on'); fn(e.dataTransfer.files); });
+});
+$('#ok1').onclick = () => {
+  S.an = C.analyze(XLSX, S.tplWb, S.files.map(f => ({name:f.name, sheet:f.sheet})));
+  if (!S.an.tplYear || !S.an.year){ $('#s1msg').innerHTML = '<div class="callout">無法判斷範本年度或系統檔年度，請確認檔案。</div>'; return; }
+  confirmStep(1, `載入範本 ${S.tplName}（${S.an.tplYear}年度）與 ${S.files.length} 個系統檔（${S.an.year}年度）`);
+  render2(); go(2);
+};
+
+// ---- step 2 ----
+const ST = { ok:['c-ok','系統檔＋範本格式'], copy:['c-mute','固定頁，照抄範本'], derive:['c-info','自動推算'], judge:['c-info','判斷有無'], partial:['c-warn','部分輸出'], skip:['c-mute','本年度不輸出'], missing:['c-ng','缺系統檔'] };
+function render2(){
+  const rows = S.an.rows;
+  const cnt = k => rows.filter(r=>r.status===k).length;
+  $('#s2sum').innerHTML = `
+    <div class="stat"><b>${S.an.tplYear} → ${S.an.year}</b><span>範本年度 → 本年度</span></div>
+    <div class="stat"><b>${cnt('ok')}</b><span>直接套用</span></div>
+    <div class="stat"><b>${cnt('derive')+cnt('judge')}</b><span>推算／判斷</span></div>
+    <div class="stat"><b>${cnt('copy')}</b><span>固定頁</span></div>
+    <div class="stat"><b style="color:${cnt('missing')?'var(--ng)':'inherit'}">${cnt('missing')}</b><span>缺系統檔</span></div>`;
+  $('#mapTable tbody').innerHTML = rows.map(r => {
+    const [cls, lab] = ST[r.status] || ['c-mute', r.status];
+    const tpl = r.tpl.length > 3 ? `${esc(r.tpl[0])} 等 ${r.tpl.length} 張` : r.tpl.map(esc).join('<br>');
+    const sys = r.sys ? esc(r.sys).split('\n').map(s => s.replace(/_\d{14}.*$/, '')).join('<br>') : '<span style="opacity:.5">—</span>';
+    return `<tr><td>${esc(r.no)}</td><td>${esc(r.title)}</td><td>${tpl || '<span style="color:var(--ng)">範本無此表</span>'}</td><td style="font-size:12.5px">${sys}</td><td><span class="chip ${cls}">${lab}</span>${r.note?`<div style="font-size:12px;color:var(--ink2);margin-top:3px">${esc(r.note)}</div>`:''}</td></tr>`;
+  }).join('');
+}
+$('#ok2').onclick = () => {
+  const miss = S.an.rows.filter(r=>r.status==='missing').map(r=>'#'+r.no);
+  confirmStep(2, '表名對照確認' + (miss.length ? `（缺系統檔：${miss.join('、')}，暫用範本）` : ''));
+  S.checks = C.runChecks(XLSX, S.an.sys, S.an.details); render3(); go(3);
+};
+
+// ---- step 3 ----
+function render3(){
+  const ok = S.checks.filter(c=>c.ok).length, ng = S.checks.length - ok;
+  $('#s3sum').innerHTML = `<div class="stat"><b style="color:var(--ok)">${ok}</b><span>相符</span></div><div class="stat"><b style="color:${ng?'var(--ng)':'inherit'}">${ng}</b><span>不符</span></div>`;
+  let html = '', grp = '';
+  S.checks.forEach(c => {
+    if (c.group !== grp){ grp = c.group; html += `<h4 class="grp">${grp}面</h4>`; }
+    const multi = c.items.some(i => i.length > 2);
+    const body = multi
+      ? `<table class="t"><thead><tr><th>項目</th><th style="text-align:right">甲</th><th style="text-align:right">乙</th><th style="text-align:right">差額</th></tr></thead><tbody>${c.items.map(i=>`<tr><td>${esc(i[0])}</td><td class="num">${fmt(i[1])}</td><td class="num">${fmt(i[2])}</td><td class="num">${i[1]==null||i[2]==null?'—':fmt(i[1]-i[2])}</td></tr>`).join('')}</tbody></table>`
+      : `<table class="t"><tbody>${c.items.map(i=>`<tr><td>${esc(i[0])}</td><td class="num">${fmt(i[1])}</td></tr>`).join('')}</tbody></table>`;
+    html += `<details class="rule ${c.ok?'ok':'ng'}" ${c.ok?'':'open'}><summary><span class="light"></span><span class="rid">${c.id}</span><span>${esc(c.title)}</span><span class="ex">${esc(c.extra)}</span></summary><div class="body">${body}</div></details>`;
+  });
+  $('#rules').innerHTML = html;
+  $('#s3note').textContent = ng ? `有 ${ng} 條不符，請先查明原因` : '全部相符';
+}
+$('#ok3').onclick = () => {
+  const ng = S.checks.filter(c=>!c.ok).map(c=>c.id);
+  confirmStep(3, ng.length ? `內容核對：${ng.join('、')} 不符，經承辦人確認後繼續` : '內容核對 18 條全部相符');
+  init4(); go(4);
+};
+
+// ---- step 4 ----
+function init4(){
+  const b7 = S.checks.find(c=>c.id==='B7');
+  const v = b7 && b7.items[0] ? b7.items[0][1] : null;
+  $('#s12info').innerHTML = v === 0
+    ? `<div class="callout ok">#4 本年度減免（註銷）數為 0，判斷<b>本年度無賸餘</b>。</div>`
+    : `<div class="callout">#4 本年度減免（註銷）數為 ${fmt(v)} 元，<b>需依 #4 人工編製 #12</b>。</div>`;
+  $$('input[name=r12]').forEach(r => r.checked = (r.value === (v === 0 ? 'none' : 'manual')));
+  S.unmet = null; S.noteEdited = false;
+  calc38(true);
+}
+function parseNum(s){ const t=String(s).replace(/[,\s元]/g,''); if(t==='') return null; const n=Number(t); return isFinite(n)?n:NaN; }
+function calc38(resetInput){
+  S.R = C.derive38(XLSX, S.an.sys, S.unmet);
+  if (resetInput) $('#unmet').value = fmt(S.R.unmet);
+  $('#unmetHint').innerHTML = S.unmet == null
+    ? `<span class="chip c-warn">推算值</span> 依業務費調整數反推，請以帳上數字核對`
+    : `<span class="chip c-info">已手動輸入</span> 推算值為 ${fmt(S.R.unmetAuto)}`;
+  $('#r38checks').innerHTML = S.R.checks.map(c => { const ok = c[1]!=null && c[2]!=null && Math.abs(c[1]-c[2])<0.5; return `<div class="rule ${ok?'ok':'ng'}" style="margin-bottom:6px"><div style="display:flex;gap:10px;align-items:center;padding:7px 12px"><span class="light"></span><span>${esc(c[0])}</span><span class="ex" style="margin-left:auto;font-family:var(--mono);font-size:12.5px">${fmt(c[1])} ／ ${fmt(c[2])}${ok?'':'　差 '+fmt(c[1]-c[2])}</span></div></div>`; }).join('');
+  $('#t38 tbody').innerHTML = S.R.rows.map(r => `<tr${/^(歲入|歲出|歲計餘絀)$/.test(r[0])?' style="font-weight:700"':''}><td>${esc(r[0].replace(/ˉ/g,'　'))}</td>${[1,2,3].map(i=>`<td class="num">${typeof r[i]==='number'?fmt(r[i]):esc(r[i])}</td>`).join('')}<td>${esc(r[4].replace(/ˉ/g,'　'))}</td></tr>`).join('');
+  if (!S.noteEdited) $('#note38').value = S.R.note;
+}
+$('#unmet').addEventListener('change', e => {
+  const n = parseNum(e.target.value);
+  if (Number.isNaN(n)) { e.target.value = fmt(S.R.unmet); return; }
+  S.unmet = n; S.noteEdited = false; calc38(false); e.target.value = fmt(S.R.unmet);
+});
+$('#note38').addEventListener('input', () => { S.noteEdited = true; });
+$('#ok4').onclick = () => {
+  const bad = S.R.checks.filter(c => !(c[1]!=null && c[2]!=null && Math.abs(c[1]-c[2])<0.5));
+  const m12 = $('input[name=r12]:checked').value;
+  confirmStep(4, `#12：${m12==='none'?'本年度無':'保留表頭待人工編製'}；#38：未達財產標準數 ${fmt(S.R.unmet)} 元${S.unmet==null?'（推算值）':''}${bad.length?'，推算檢查有 '+bad.length+' 項不符':''}`);
+  $('#outName').value = `${S.an.year}年度決算書表.xlsx`;
+  $('#genResult').innerHTML = ''; go(5);
+};
+
+// ---- step 5 ----
+$('#btnGen').onclick = async () => {
+  const btn = $('#btnGen'); btn.disabled = true; $('#s5note').textContent = '產生中…';
+  try{
+    const R = Object.assign({}, S.R, { note: $('#note38').value });
+    const checks = S.checks.slice();
+    checks.push({ id:'—', group:'作業紀錄', title:'各步驟確認', ok:true, items:S.confirms.map(c=>['步驟'+c[0]+'（'+c[2]+'）'+c[1]]), extra:'' });
+    const res = await C.generate(XLSX, ExcelJS, S.tplWb, S.an, { checks, r38:R, no12: $('input[name=r12]:checked').value==='none', withCheckSheet: $('#withCheck').checked, JSZip: window.JSZip, tplBuf: S.tplBuf });
+    const blob = new Blob([res.buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = $('#outName').value || 'output.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    confirmStep(5, '產生報表 ' + a.download);
+    const out = res.log.filter(l => !/^略過/.test(l[1]));
+    $('#genResult').innerHTML = `<div class="callout ok">已下載 <b>${esc(a.download)}</b>，共 ${out.length} 個工作表${$('#withCheck').checked?'（另附核對結果）':''}。請用 Excel 開啟後逐表列印預覽。</div>
+      <div class="scroll"><table class="t"><thead><tr><th>工作表</th><th>處理方式</th><th style="text-align:right">系統列數／範本列數</th></tr></thead><tbody>${res.log.map(l=>`<tr${/略過/.test(l[1])?' style="opacity:.5"':''}><td>${esc(l[0])}</td><td>${/缺系統檔/.test(l[1])?'<span class="chip c-ng">'+esc(l[1])+'</span>':esc(l[1])}</td><td class="num">${l[2]?l[2].S+'／'+l[2].T:''}</td></tr>`).join('')}</tbody></table></div>`;
+    $('#s5note').textContent = '完成';
+    go(5);
+  }catch(e){
+    console.error(e); $('#s5note').textContent = '';
+    $('#genResult').innerHTML = `<div class="callout">產生失敗：${esc(e.message)}</div>`;
+  }finally{ btn.disabled = false; }
+};
+
+// ---- step 6 ----
+$('#to6').onclick = () => { init6(); go(6); };
+function init6(){
+  const list = FinalPub.candidates(S.an, C.TABLES);
+  $('#pubList').innerHTML = list.map(t => `<label><input type="checkbox" class="pubck" value="${esc(t.no)}" checked><span class="no">${esc(t.no)}</span><span>${esc(t.title)}</span></label>`).join('');
+  $('#pubResult').innerHTML = ''; $('#pubPreview').classList.add('hidden');
+}
+$('#pubAll').onclick = () => $$('.pubck').forEach(c => c.checked = true);
+$('#pubNone').onclick = () => $$('.pubck').forEach(c => c.checked = false);
+let PUB = null;
+function showPv(){
+  if (!PUB) return; const l = PUB.list[+$('#pvSel').value] || PUB.list[0];
+  const fmtSel = $('input[name=pvFmt]:checked').value;
+  $('#pvBox').textContent = fmtSel === 'xml' ? l.xml : l.md;
+}
+$('#pvSel').onchange = showPv; $$('input[name=pvFmt]').forEach(r => r.onchange = showPv);
+$('#btnPub').onclick = async () => {
+  const inc = new Set($$('.pubck').filter(c => c.checked).map(c => c.value));
+  if (!inc.size) { $('#s6note').textContent = '請至少勾選一張表'; return; }
+  const btn = $('#btnPub'); btn.disabled = true; $('#s6note').textContent = '產生中…';
+  try{
+    const R = Object.assign({}, S.R, { note: $('#note38').value });
+    const res = await FinalPub.build(XLSX, JSZip, S.an, { TABLES: C.TABLES, R, no12: $('input[name=r12]:checked').value === 'none', include: inc, maskNames: $('#pubMask').checked });
+    PUB = res;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(res.buf); a.download = res.folder + '.zip';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    confirmStep(6, `產製公告檔 ${a.download}（${res.list.length} 張表${$('#pubMask').checked ? '，姓名已遮蔽' : ''}）`);
+    $('#pubResult').innerHTML = `<div class="callout ok">已下載 <b>${esc(a.download)}</b>：${res.list.length} 張表 × XML＋MD，另含 index.md／index.xml（SHA-256）。</div>
+      <div class="scroll"><table class="t"><thead><tr><th>表號</th><th>表名</th><th style="text-align:right">筆數</th><th>XML SHA-256</th></tr></thead><tbody>${res.list.map(l => `<tr><td>${esc(l.no)}</td><td>${esc(l.title)}${l.masked?' <span class="chip c-info">姓名已遮蔽</span>':''}</td><td class="num">${l.statement?'—':l.records}</td><td style="font-family:var(--mono);font-size:11.5px;word-break:break-all">${l.shaXml}</td></tr>`).join('')}</tbody></table></div>`;
+    $('#pvSel').innerHTML = res.list.map((l, i) => `<option value="${i}">${esc(l.no)}　${esc(l.title)}</option>`).join('');
+    $('#pubPreview').classList.remove('hidden'); showPv();
+    $('#s6note').textContent = '完成';
+  }catch(e){ console.error(e); $('#s6note').textContent = ''; $('#pubResult').innerHTML = `<div class="callout">產生失敗：${esc(e.message)}</div>`; }
+  finally{ btn.disabled = false; }
+};
+
+// ---- step 7：格式 1～5 ----
+const F7 = { D:null, S:null, cur:1, ok:{} };
+const FNAMES = {1:'格式1 封面',2:'格式2 封底',3:'格式3 目次',4:'格式4 總說明',5:'格式5 歲入來源別決算表'};
+function open7(){
+  if (!F7.D || F7.year !== S.an.year){
+    F7.D = FinalFmt.gather(XLSX, S.an, Object.assign({}, S.R, { note: $('#note38').value }), C.TABLES);
+    F7.S = FinalFmt.defaults(F7.D); F7.ok = {}; F7.year = S.an.year;
+  }
+  render7tabs(); render7form(); go(7);
+}
+$('#to7').onclick = open7; $('#to7b').onclick = open7;
+$$('#stepper li[data-step="7"]').forEach(li => li.addEventListener('click', () => { if (canGo(7) && !F7.D) open7(); }));
+function render7tabs(){
+  $('#f7tabs').innerHTML = [1,2,3,4,5].map(n => `<button role="tab" data-f="${n}" aria-selected="${n===F7.cur}">${FNAMES[n]} <span class="chip ${F7.ok[n]?'c-ok':'c-mute'}">${F7.ok[n]?'已確認':'未確認'}</span></button>`).join('');
+  $$('#f7tabs button').forEach(b => b.onclick = () => { F7.cur = +b.dataset.f; render7tabs(); render7form(); });
+  const all = [1,2,3,4,5].every(n => F7.ok[n]);
+  $('#f7All').disabled = !all;
+  $('#f7note').textContent = all ? '5 個格式都已確認' : `已確認 ${[1,2,3,4,5].filter(n=>F7.ok[n]).length}／5`;
+  $('#f7Ok').textContent = F7.ok[F7.cur] ? '已確認 ✓' : '確認此格式';
+}
+// 路徑讀寫
+const getP = (o, p) => p.split('.').reduce((a, k) => a == null ? a : a[k], o);
+const setP = (o, p, v) => { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => a[k], o); t[last] = v; };
+const inp = (label, path, opt) => { opt = opt || {}; const v = getP(F7.S, path); return `<label class="field">${esc(label)}${opt.area ? `<textarea data-p="${path}">${esc(v)}</textarea>` : `<input type="${opt.type||'text'}" data-p="${path}" value="${esc(v)}">`}${opt.hint?`<span style="font-size:12px">${esc(opt.hint)}</span>`:''}</label>`; };
+function render7form(){
+  const s = F7.S, n = F7.cur, D = F7.D; let h = '';
+  if (n === 1){
+    h += inp('封面標題', 'f1.title') + inp('決算名稱', 'f1.unitTitle', {hint:'例：主計總處單位決算'}) + inp('款號－項號（書背、封面）', 'f1.kx', {hint:`自動取自 #3 歲出機關別決算表：${D.ministry||'—'} 款 ${D.kuan||'—'}、${D.unit||'—'} 項 ${D.xiang||'—'}`});
+    h += `<div class="inline">${inp('期間起', 'f1.from')}${inp('期間迄', 'f1.to')}</div>` + inp('編製（封面下方）', 'f1.editor');
+  } else if (n === 2){
+    h += inp('主辦會計人員（職稱 姓名，可留空蓋章）', 'f2.acct') + inp('機關長官（職稱 姓名，可留空蓋章）', 'f2.head');
+  } else if (n === 3){
+    const tp = FinalFmt.tocPages(s);
+    h += inp('目次標題', 'f3.title') + `<div class="inline">${inp('起始頁碼', 'f3.start', {type:'number'})}${inp('總說明頁數', 'f3.summaryPages', {type:'number'})}</div>`;
+    h += `<h5>書表分類與頁數（頁碼依分類順序自動累計）</h5><div class="scroll"><table class="t"><thead><tr><th>表號</th><th>書表名稱</th><th>分類</th><th style="width:70px">頁數</th><th style="text-align:right">起始頁</th></tr></thead><tbody>` +
+      s.f3.items.map((it, i) => { const pg = (tp.items.find(x => x.no === it.no) || {}).page; return `<tr><td>${esc(it.no)}</td><td><input data-p="f3.items.${i}.title" value="${esc(it.title)}"></td><td><select data-p="f3.items.${i}.group">${FinalFmt.GROUPS.map(g=>`<option${g===it.group?' selected':''}>${g}</option>`).join('')}</select></td><td><input type="number" min="0" data-p="f3.items.${i}.pages" value="${esc(it.pages)}"></td><td class="num">${pg==null?'—':pg}</td></tr>`; }).join('') + `</tbody></table></div>`;
+  } else if (n === 4){
+    h += `<h5>一、財務報告之簡述</h5>` + inp('（一）歲入預算執行結果（已自動帶入數字，請補原因）', 'f4.revText', {area:true}) + inp('（一）歲出預算執行結果', 'f4.expText', {area:true}) + inp('（二）平衡表重要科目之金額及內容', 'f4.bsText', {area:true});
+    h += `<h5>二（一）變動達 5 億元或 20% 以上之科目（自動篩選）</h5>`;
+    h += s.f4.flagged.length ? `<div class="scroll"><table class="t"><thead><tr><th>科目</th><th style="text-align:right">本年度</th><th style="text-align:right">上年度</th><th>原因說明</th></tr></thead><tbody>${s.f4.flagged.map((r,i)=>`<tr><td>${esc(r.name)}</td><td class="num">${fmt(r.cur)}</td><td class="num">${fmt(r.pri)}</td><td><textarea data-p="f4.flagged.${i}.reason">${esc(r.reason)}</textarea></td></tr>`).join('')}</tbody></table></div>` : '<div class="hint">本年度無符合條件的科目。</div>';
+    h += `<h5>二（二）未來或有給付責任</h5><label style="font-size:14px"><input type="checkbox" data-p="f4.contingentNone" ${s.f4.contingentNone?'checked':''}> 本機關無未來或有給付責任</label>`;
+    if (!s.f4.contingentNone) h += `<div class="scroll"><table class="t"><thead><tr><th>項目</th><th>本年小計</th><th>本年中央</th><th>本年地方</th><th>上年小計</th><th>上年中央</th><th>上年地方</th><th>主要增減原因</th><th></th></tr></thead><tbody>${s.f4.contingent.map((r,i)=>`<tr>${['item','c1','c2','c3','p1','p2','p3','reason'].map(k=>`<td><input data-p="f4.contingent.${i}.${k}" value="${esc(r[k])}"></td>`).join('')}<td><button class="btn rowbtn" data-del="f4.contingent.${i}">刪</button></td></tr>`).join('')}</tbody></table></div><button class="btn rowbtn" data-add="contingent">＋新增一列</button>`;
+    h += `<h5>三、重要施政計畫執行成果</h5>` + inp('（一）已完成施政計畫重點概述（單位決算以一頁為限）', 'f4.achievements', {area:true});
+    h += `<div class="hint" style="font-size:12px">（二）施政計畫分項說明：已依 #3 帶入工作計畫名稱</div><div class="scroll"><table class="t"><thead><tr><th>工作計畫名稱</th><th>重要計畫項目</th><th>實施內容</th><th>已完成或未完成之說明</th><th>因應改善措施</th><th></th></tr></thead><tbody>${s.f4.plans.map((r,i)=>`<tr>${['plan','item','content','status','remedy'].map(k=>`<td><textarea data-p="f4.plans.${i}.${k}">${esc(r[k])}</textarea></td>`).join('')}<td><button class="btn rowbtn" data-del="f4.plans.${i}">刪</button></td></tr>`).join('')}</tbody></table></div><button class="btn rowbtn" data-add="plans">＋新增一列</button>`;
+    h += `<h5>四、其他重要說明</h5><label style="font-size:14px"><input type="checkbox" data-p="f4.rounding" ${s.f4.rounding?'checked':''}> 決算表件有角分位四捨五入至元表達之情形（帶入規定文字）</label>`;
+  } else {
+    h += `<div class="callout info">格式 5 全部取自系統檔 #1 歲入來源別決算表，不需輸入。請在右邊核對：款項目節、名稱及編號、預算數、決算數、經常門／資本門小計與合計。</div>`;
+    const t = F7.D.rev.total || {};
+    h += `<div class="summary"><div class="stat"><b>${fmt(t.budget)}</b><span>預算合計(1)</span></div><div class="stat"><b>${fmt(t.final)}</b><span>決算合計(2)</span></div><div class="stat"><b>${t.rate==null?'—':Number(t.rate).toFixed(2)+'%'}</b><span>決算數占預算數比率</span></div></div>`;
+  }
+  document.querySelector('.f7wrap').classList.toggle('stack', n === 3 || n === 4);
+  $('#f7form').innerHTML = h;
+  $$('#f7form [data-p]').forEach(el => {
+    const ev = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
+    el.addEventListener(ev, () => {
+      let v = el.type === 'checkbox' ? el.checked : el.value;
+      if (el.type === 'number') v = v === '' ? '' : Number(v);
+      setP(F7.S, el.dataset.p, v); unconfirm();
+      if (el.type === 'checkbox' || el.tagName === 'SELECT' || (n === 3 && /pages|start|summary/.test(el.dataset.p))) { const y = window.scrollY; render7form(); window.scrollTo(0, y); } else render7pv();
+    });
+  });
+  $$('#f7form [data-add]').forEach(b => b.onclick = () => { const k = b.dataset.add; F7.S.f4[k].push(k==='plans'?{plan:'',item:'',content:'',status:'',remedy:''}:{item:'',c1:'',c2:'',c3:'',p1:'',p2:'',p3:'',reason:''}); unconfirm(); render7form(); });
+  $$('#f7form [data-del]').forEach(b => b.onclick = () => { const p = b.dataset.del.split('.'); const idx = +p.pop(); getP(F7.S, p.join('.')).splice(idx, 1); unconfirm(); render7form(); });
+  render7pv();
+}
+function unconfirm(){ if (F7.ok[F7.cur]) { F7.ok[F7.cur] = false; render7tabs(); } }
+function cur7(){ return FinalFmt.renderAll(XLSX, S.an, F7.D, F7.S); }
+// 簡易 MD 預覽（標題、表格、粗體、引言、分隔線）
+function mdHtml(md){
+  const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/&lt;br&gt;/g, '<br>');
+  const L = md.split('\n'); let o = '', i = 0;
+  while (i < L.length){
+    const l = L[i];
+    if (/^<!--/.test(l)) { i++; continue; }
+    if (/^\|/.test(l) && /^\|[-:| ]+\|$/.test(L[i+1] || '')){
+      const al = L[i+1].split('|').slice(1,-1).map(c => /:$/.test(c.trim()) ? ' class="r"' : '');
+      const cells = r => r.replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|'));
+      o += '<table><thead><tr>' + cells(l).map((c,k)=>`<th${al[k]||''}>${inl(c)}</th>`).join('') + '</tr></thead><tbody>';
+      i += 2; while (i < L.length && /^\|/.test(L[i])) { o += '<tr>' + cells(L[i]).map((c,k)=>`<td${al[k]||''}>${inl(c)}</td>`).join('') + '</tr>'; i++; }
+      o += '</tbody></table>'; continue;
+    }
+    let m;
+    if ((m = l.match(/^(#{1,3}) (.*)/))) o += `<h${m[1].length}>${inl(m[2])}</h${m[1].length}>`;
+    else if (/^---$/.test(l)) o += '<hr>';
+    else if (/^> /.test(l)) o += `<blockquote>${inl(l.slice(2))}</blockquote>`;
+    else if (l.trim()) o += `<p>${inl(l)}</p>`;
+    i++;
+  }
+  return o;
+}
+function render7pv(){
+  const it = cur7()[F7.cur - 1];
+  const v = $('input[name=f7v]:checked').value;
+  $('#f7pv').innerHTML = v === 'md' ? `<pre>${esc(it.md)}</pre>` : mdHtml(it.md);
+}
+$$('input[name=f7v]').forEach(r => r.onchange = render7pv);
+$('#f7Ok').onclick = () => {
+  F7.ok[F7.cur] = true; render7tabs();
+  if (F7.cur < 5 && !F7.ok[F7.cur + 1]) { F7.cur++; render7tabs(); render7form(); }
+};
+const dl = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); };
+$('#f7One').onclick = () => { const it = cur7()[F7.cur - 1]; dl(new Blob([it.md], {type:'text/markdown;charset=utf-8'}), `${S.an.year}年度_${it.name}.md`); };
+$('#f7All').onclick = async () => {
+  const z = new JSZip(); const dir = z.folder(`${S.an.year}年度決算_格式1-5`);
+  cur7().forEach(it => dir.file(`${it.name}.md`, it.md));
+  dl(await z.generateAsync({type:'blob', compression:'DEFLATE'}), `${S.an.year}年度決算_格式1-5.zip`);
+  confirmStep(7, '格式 1～5 確認並下載 MD');
+};
+// 設定檔
+$('#f7Export').onclick = () => {
+  const data = { app:'決算書表套版工具／格式1-5', version:1, year:S.an.year, agency:F7.D.agency, savedAt:new Date().toISOString(), settings:F7.S };
+  dl(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}), `格式1-5設定_${S.an.year}年度.json`);
+  $('#f7msg').textContent = '已匯出設定檔';
+};
+$('#f7Import').onclick = () => $('#f7File').click();
+$('#f7File').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try{
+    const j = JSON.parse(await f.text()); const old = j.settings; if (!old || !old.f1) throw new Error('不是本工具的設定檔');
+    const cur = F7.S, same = j.year === S.an.year;
+    if (same) { F7.S = old; }
+    else {
+      // 跨年度：沿用不隨年度變動的內容，數字與年度相關文字以本年度為準
+      ['title','unitTitle','kx','editor'].forEach(k => { if (old.f1[k]) cur.f1[k] = old.f1[k]; });
+      cur.f2 = Object.assign({}, old.f2);
+      cur.f3.start = old.f3.start; cur.f3.summaryPages = old.f3.summaryPages;
+      cur.f3.items.forEach(it => { const o = old.f3.items.find(x => x.no === it.no); if (o) { it.group = o.group; it.pages = o.pages; it.title = o.title; } });
+      cur.f4.rounding = old.f4.rounding; cur.f4.contingentNone = old.f4.contingentNone;
+      cur.f4.contingent = (old.f4.contingent || []).map(r => ({ item:r.item, c1:'', c2:'', c3:'', p1:r.c1, p2:r.c2, p3:r.c3, reason:'' }));
+      cur.f4.plans.forEach(p => { const o = (old.f4.plans || []).find(x => x.plan === p.plan); if (o) { p.item = o.item; p.content = o.content; } });
+    }
+    F7.ok = {}; render7tabs(); render7form();
+    $('#f7msg').textContent = same ? `已還原 ${j.year} 年度設定` : `已沿用 ${j.year} 年度設定（上年度或有給付責任數字已移到「上年」欄）`;
+  }catch(err){ $('#f7msg').textContent = '匯入失敗：' + err.message; }
+  e.target.value = '';
+};
+
+go(1);
+})();
+</script>
+</body>
+</html>
