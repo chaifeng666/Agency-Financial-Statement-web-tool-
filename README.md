@@ -7,7 +7,7 @@
 - **對外公告檔**：每表一個 XML（英文標籤）＋ MD，附 SHA-256 雜湊；出國人員姓名可遮蔽
 - **格式 1～5**：封面、封底、目次、總說明、歲入來源別決算表（MD）
 
-**線上使用**：<https://chaifeng666.github.io/agency-financial-statement-web-tool-/>（需在儲存庫 Settings → Pages 啟用，見下方）
+**線上使用**：<https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/>（需在儲存庫 Settings → Pages 啟用，見下方）
 **離線使用**：下載 [`index.html`](index.html)，用 Chrome 或 Edge 開啟即可。
 
 > 所有檔案只在瀏覽器內處理，不會上傳到任何伺服器；工具本身不連網。
