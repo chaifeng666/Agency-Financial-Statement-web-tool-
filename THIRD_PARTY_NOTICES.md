@@ -1,11 +1,12 @@
 # 第三方元件（SBOM）
 
-所有元件內嵌於 `index.html`，原始檔放在 `vendor/`。
+所有元件內嵌於 `index.html`、`simple.html`、`summary-tool.html`，原始檔放在 `vendor/`。
 
 | 元件 | 版本 | 授權 | 開發者／維護者 | 檔案 | 用途 |
 |---|---|---|---|---|---|
 | SheetJS Community Edition | 0.20.3 | Apache-2.0 | SheetJS LLC（美國） | `vendor/xlsx-0.20.3.full.min.js`（SHA-256 `cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41`），取自 cdn.sheetjs.com | 讀取 .xls |
 | PDF.js（pdfjs-dist） | 3.11.174 | Apache-2.0 | Mozilla Foundation（美國） | `vendor/pdf.min.js`、`vendor/pdf.worker.min.js` | 讀取範本 PDF |
+| Adobe CMap（繁體中文 CNS1 系列 44 個 .bcmap，隨 pdfjs-dist 3.11.174 發布） | 3.11.174 | BSD-3-Clause | Adobe Systems（美國） | `vendor/pdfjs-cmaps/`（授權見同資料夾 LICENSE） | 總說明產生工具讀取中文 PDF 文字 |
 | ExcelJS（重新打包，移除 CSV／dayjs／core-js） | 4.4.0 | MIT | exceljs 專案，原作者 Guyon Roche（澳洲） | `vendor/exceljs.custom.min.js` | 讀寫 .xlsx |
 | JSZip（含 pako、lie、immediate、setimmediate） | 3.10.1 | MIT 或 GPL-3.0（擇 MIT） | Stuart Knightley（英國）；pako：nodeca | 含於 ExcelJS 打包 | 壓縮檔 |
 | saxes／xmlchars | 5.0.1／2.2.0 | ISC／MIT | Louis-Dominique Dubeau（加拿大） | 含於 ExcelJS 打包 | XML 解析 |
