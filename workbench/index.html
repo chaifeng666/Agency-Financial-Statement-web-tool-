@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>決算書表工作台</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky ledger-green top bar with the menu, one working view below; documents render as white A4 sheets. */
+:root{
+  --bg:#f3f6f2; --surface:#ffffff; --line:#d5ded6; --fg:#1d2a24; --muted:#5d6e65;
+  --brand:#1f5a46; --brand-ink:#ffffff; --celadon:#dcebdc; --seal:#b3261e; --ok:#1e7a46; --warn:#a15c00;
+  --paper:#ffffff; --ink:#111111; --src:#1f4e9a;
+  --f-display:"Noto Serif TC","標楷體","DFKai-SB",serif;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --f-doc:"標楷體","DFKai-SB","BiauKai","Noto Serif TC",serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121915; --surface:#1a231e; --line:#2e3b34; --fg:#e4ece6; --muted:#9aaba1;
+  --brand:#2f7a60; --brand-ink:#ffffff; --celadon:#22362b; --seal:#ff8a80; --ok:#6fd39a; --warn:#f0b35a; --src:#1f4e9a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121915; --surface:#1a231e; --line:#2e3b34; --fg:#e4ece6; --muted:#9aaba1;
+  --brand:#2f7a60; --brand-ink:#ffffff; --celadon:#22362b; --seal:#ff8a80; --ok:#6fd39a; --warn:#f0b35a; --src:#1f4e9a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.65 var(--f-body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--brand)}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--brand);color:var(--brand-ink);box-shadow:0 1px 0 rgba(0,0,0,.15)}
+.bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding-block:10px;max-width:1360px;margin:0 auto}
+.brand{display:flex;align-items:baseline;gap:10px;font-family:var(--f-display);font-weight:900;font-size:20px;letter-spacing:.06em;white-space:nowrap}
+.brand small{font-family:var(--f-body);font-weight:400;font-size:12px;opacity:.8;letter-spacing:0}
+nav.menu{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+nav.menu button{all:unset;cursor:pointer;padding:7px 14px;border-radius:6px;font-weight:500;font-size:15px;color:var(--brand-ink);opacity:.86;display:flex;gap:8px;align-items:center}
+nav.menu button .k{font-family:var(--f-mono);font-size:12px;border:1px solid rgba(255,255,255,.5);border-radius:4px;padding:0 5px;line-height:18px}
+nav.menu button:hover{opacity:1;background:rgba(255,255,255,.12)}
+nav.menu button[aria-current="page"]{opacity:1;background:rgba(255,255,255,.2);box-shadow:inset 0 -2px 0 #fff}
+nav.menu button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #ffd54f;outline-offset:2px}
+.meta{display:flex;gap:8px;align-items:center;font-size:13px}
+.meta input{width:auto;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:5px;padding:4px 8px;font:inherit}
+.meta input#yr{width:62px;font-family:var(--f-mono)}
+.meta input#org{width:150px}
+.loader{background:var(--surface);border-bottom:1px solid var(--line)}
+.loader .in{max-width:1360px;margin:0 auto;padding-block:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.drop{border:1.5px dashed var(--brand);border-radius:8px;padding:6px 14px;cursor:pointer;color:var(--brand);font-weight:500;background:var(--celadon)}
+.drop.over{background:var(--brand);color:#fff}
+.chips{display:flex;gap:4px;flex-wrap:wrap;min-width:0;flex:1}
+.chip{font-family:var(--f-mono);font-size:11.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--muted)}
+.chip.on{background:var(--celadon);border-color:var(--brand);color:var(--fg)}
+main{max-width:1360px;margin:0 auto;padding-block:24px 64px}
+section.view{display:none}
+section.view.on{display:block}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+h1{font-size:26px;letter-spacing:.04em}
+h2{font-size:19px}
+h3{font-size:16px}
+.lede{color:var(--muted);max-width:68ch;margin:6px 0 20px}
+.grid2{display:grid;grid-template-columns:340px minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.panel+.panel{margin-top:14px}
+.panel h3{margin-bottom:10px}
+label.f{display:grid;gap:3px;font-size:13px;color:var(--muted);margin-bottom:10px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{all:unset;cursor:pointer;background:var(--brand);color:var(--brand-ink);padding:8px 14px;border-radius:7px;font-weight:500;font-size:14px;display:inline-flex;gap:6px;align-items:center}
+.btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin:6px 0}
+.chk input{width:auto;margin-top:5px}
+.hint{font-size:12.5px;color:var(--muted)}
+.empty{border:1.5px dashed var(--line);border-radius:10px;padding:28px;text-align:center;color:var(--muted)}
+/* flow */
+.flow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0;position:relative;margin:8px 0 26px}
+@media (max-width:1100px){.flow{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;padding:0 16px 0 0}
+.stage .card{all:unset;box-sizing:border-box;display:block;width:100%;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:150px}
+.stage .card:hover,.stage .card.sel{border-color:var(--brand);box-shadow:0 0 0 2px var(--celadon)}
+.stage .card:focus-visible{outline:2px solid var(--brand)}
+.stage .no{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.stage .nm{font-family:var(--f-display);font-weight:900;font-size:17px;margin:2px 0 4px}
+.stage .dir{font-family:var(--f-mono);font-size:11.5px;color:var(--brand);word-break:break-all}
+.stage .tag{display:inline-block;margin-top:6px;font-size:11.5px;padding:1px 7px;border-radius:9px;background:var(--brand);color:#fff}
+.stage::after{content:"";position:absolute;right:2px;top:64px;border:6px solid transparent;border-left:9px solid var(--brand)}
+.stage:last-child::after{display:none}
+@media (max-width:1100px){.stage{padding:0 0 18px}.stage::after{right:auto;left:24px;top:auto;bottom:2px;border:7px solid transparent;border-top:9px solid var(--brand)}.stage .card{min-height:0}}
+.stage.hl .card{background:var(--celadon);border-color:var(--brand)}
+.sub{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin-top:6px}
+@media (max-width:900px){.sub{grid-template-columns:minmax(0,1fr)}}
+.sub .s{position:relative;padding-right:16px}
+.sub .s>div{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:10px;height:100%}
+.sub .s::after{content:"→";position:absolute;right:1px;top:30%;color:var(--brand);font-weight:700}
+.sub .s:last-child::after{display:none}
+@media (max-width:900px){.sub .s{padding:0 0 14px}.sub .s::after{content:"↓";right:auto;left:20px;top:auto;bottom:-4px}}
+.sub b{display:block;font-size:14px}
+.sub a{color:var(--brand);font-weight:700;cursor:pointer;text-decoration:underline}
+.detail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media (max-width:800px){.detail{grid-template-columns:minmax(0,1fr)}}
+.detail ul{margin:6px 0 0;padding-left:1.2em}
+.detail li{margin:3px 0}
+.lab{font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:700}
+/* A4 sheet */
+.sheetwrap{overflow-x:auto;background:var(--celadon);border-radius:10px;padding:22px;min-width:0}
+.sheet{background:var(--paper);color:var(--ink);width:21cm;min-height:29.7cm;margin:0 auto;padding:2cm 2.2cm;box-shadow:0 2px 10px rgba(0,0,0,.18);font:13pt/22pt var(--f-doc)}
+.sheet p{margin:0}
+.sheet .c{text-align:center}
+.sheet .n{font-variant-numeric:tabular-nums}
+.sheet .src{display:none;color:var(--src);font-size:8pt;font-family:var(--f-mono)}
+.sheet.tag .src{display:inline}
+.sheet.tag .n{color:var(--src)}
+.sheet .todo{color:#c00000}
+.sheet table{border-collapse:collapse;width:100%;font-size:11pt;line-height:1.5;margin:4px 0 8px}
+.sheet td,.sheet th{border:1px solid #000;padding:3px 5px;vertical-align:top}
+.sheet th{text-align:center}
+.sheet[contenteditable="true"]:focus{outline:2px solid var(--brand)}
+/* checks */
+.checks{list-style:none;padding:0;margin:0;font-size:13px}
+.checks li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:6px;padding:5px 0;border-bottom:1px solid var(--line)}
+.checks .pass{color:var(--ok);font-weight:700}
+.checks .fail{color:var(--seal);font-weight:700}
+.checks small{color:var(--muted);font-family:var(--f-mono);font-size:11.5px;display:block}
+/* toc */
+.toctab{width:100%;border-collapse:collapse;font-size:13.5px}
+.toctab td,.toctab th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}
+.toctab th{font-size:12px;color:var(--muted);font-weight:500}
+.toctab input[type=number]{width:62px;padding:2px 4px;font-family:var(--f-mono)}
+.toctab input[type=checkbox]{width:auto}
+.toctab tr.h td{font-weight:700;background:var(--bg)}
+.toctab .pg{font-family:var(--f-mono);white-space:nowrap}
+.toctab .lv1{padding-left:18px}.toctab .lv2{padding-left:34px}
+.tocline{display:flex;align-items:baseline;gap:4px}
+.tocline .dots{flex:1;border-bottom:1.5px dotted #333;transform:translateY(-4px);min-width:20px}
+.tocline .p{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl-scroll{overflow-x:auto;max-width:100%}
+.mono{font-family:var(--f-mono)}
+.pill{font-size:11.5px;padding:1px 8px;border-radius:9px;border:1px solid var(--line);white-space:nowrap}
+.pill.ok{color:var(--ok);border-color:var(--ok)}
+.pill.no{color:var(--muted)}
+/* format tool */
+.tlist{list-style:none;margin:0;padding:0;max-height:440px;overflow:auto}
+.tlist li{display:grid;grid-template-columns:22px 36px minmax(0,1fr);gap:6px;align-items:center;padding:5px 4px;border-bottom:1px solid var(--line);font-size:13.5px;cursor:pointer}
+.tlist li.sel{background:var(--celadon)}
+.tlist input{width:auto}
+.xprev{overflow:auto;max-height:640px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:6px}
+.xprev table{border-collapse:collapse;font:10pt/1.35 var(--f-doc)}
+.xprev td{padding:2px 4px;white-space:pre-wrap;min-width:24px}
+.xprev td.b{border:1px solid #000}
+.xprev td.num{text-align:right;font-variant-numeric:tabular-nums}
+.xprev td.t1{font-size:15pt;font-weight:700;text-align:center}
+.xprev td.hd{font-weight:700;text-align:center;vertical-align:middle}
+.rules{font-size:13.5px;padding-left:1.2em;margin:6px 0}
+.toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:40;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+nav.menu button{white-space:nowrap}
+@media (max-width:760px){header.top{position:static}.bar{gap:8px}nav.menu{order:3;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto}.meta{flex-wrap:wrap}.chips{flex:1 1 100%}.drop{flex:1 1 100%;text-align:center}h1{font-size:22px}.sheetwrap{padding:10px}}
+.foot{color:var(--muted);font-size:12.5px;max-width:1360px;margin:0 auto;padding-block:0 30px}
+</style>
+</head>
+<body>
+<header class="top gut">
+  <div class="bar">
+    <div class="brand">決算書表工作台<small>單位決算編製</small></div>
+    <nav class="menu" aria-label="主選單">
+      <button data-v="flow" aria-current="page">作業流程圖</button>
+      <button data-v="zsm"><span class="k">1</span>生成總說明</button>
+      <button data-v="toc"><span class="k">2</span>生成目次</button>
+      <button data-v="fmt"><span class="k">3</span>各書表格式調整</button>
+      <button data-v="help">使用說明</button>
+    </nav>
+    <div class="meta">
+      <label for="org">機關</label><input id="org" value="行政院主計總處">
+      <label for="yr">年度</label><input id="yr" value="114" inputmode="numeric">
+    </div>
+  </div>
+</header>
+<div class="loader gut">
+  <div class="in">
+    <label class="drop" id="drop" for="files">＋ 載入系統產製書表（.xls，可多選或拖曳）</label>
+    <input type="file" id="files" multiple accept=".xls,.xlsx" hidden>
+    <div class="chips" id="chips"></div>
+    <span class="hint" id="loadhint">檔案只在您的瀏覽器內處理，不會上傳。</span>
+  </div>
+</div>
+
+<main class="gut">
+<!-- ============ 流程圖 ============ -->
+<section class="view on" id="v-flow">
+  <h1>決算書表標準作業流程</h1>
+  <p class="lede">依專案資料夾架構，決算作業分七個階段，目錄編號即流程順序。點選各階段看工作重點與檢核事項；第 3 階段「產製書表」由本工作台的三項工具協助完成。</p>
+  <div class="flow" id="flow"></div>
+  <div class="panel" id="flowdetail"></div>
+  <div class="panel">
+    <h3>第 3 階段「產製書表」細部流程</h3>
+    <div class="sub">
+      <div class="s"><div><b>載入系統產製書表</b><span class="hint">由會計系統匯出 .xls，檔名格式「114_表號_書表名稱_…」，放在 02_原始資料\系統產製書表\</span></div></div>
+      <div class="s"><div><b>各書表格式調整</b><span class="hint">補表頭、標楷體、千分位、A4 版面、重複標題列、頁碼。</span><br><a data-go="fmt">開啟工具 3</a></div></div>
+      <div class="s"><div><b>生成總說明</b><span class="hint">由表 1、3、5、8、9、11、20、37 帶入數字並自動勾稽，紅字待補處由業務單位提供。</span><br><a data-go="zsm">開啟工具 1</a></div></div>
+      <div class="s"><div><b>生成目次</b><span class="hint">依各書表頁數自動編頁碼，跨頁表件自偶數頁起以左右對頁。</span><br><a data-go="toc">開啟工具 2</a></div></div>
+      <div class="s"><div><b>封面、封底、裝訂</b><span class="hint">封面淺綠色、加蓋機關印信；封底加蓋機關長官及主辦會計人員職名章。</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 1 總說明 ============ -->
+<section class="view" id="v-zsm">
+  <h1>1　生成總說明</h1>
+  <p class="lede">依「總決算編製要點」格式 4：一、財務報告之簡述；二、財務狀況之分析；三、重要施政計畫執行成果之說明。數字由系統產製書表帶入，產生後可直接在右側稿面修改再下載。</p>
+  <div class="grid2">
+    <div>
+      <div class="panel">
+        <h3>產製</h3>
+        <div class="chk"><input type="checkbox" id="z-tag"><label for="z-tag">顯示數據來源（藍字與〔表號 儲存格〕）</label></div>
+        <label class="f">平衡表變動須說明門檻
+          <select id="z-th"><option value="2">差異達 20%（同 114 年度用印版寫法）</option><option value="1">金額達 5 億元或差異達 20%（編製要點格式 4）</option></select></label>
+        <div class="row">
+          <button class="btn" id="z-gen">產生總說明</button>
+          <button class="btn ghost" id="z-doc" disabled>下載 Word</button>
+          <button class="btn ghost" id="z-copy" disabled>複製全文</button>
+        </div>
+        <p class="hint">下載檔名依專案規則：<span class="mono" id="z-fn">114_總說明_v1_日期.doc</span></p>
+      </div>
+      <div class="panel">
+        <h3>勾稽檢核 <span class="pill no" id="z-sum">尚未產生</span></h3>
+        <ul class="checks" id="z-checks"></ul>
+      </div>
+      <div class="panel">
+        <h3>需要的系統書表</h3>
+        <ul class="checks" id="z-need"></ul>
+      </div>
+    </div>
+    <div class="sheetwrap"><div class="sheet" id="z-sheet" contenteditable="false"><div class="empty">載入 114 年系統產製書表後，按「產生總說明」。<br>至少需要表 1、3、5、20；表 8、9、11、37 用於勾稽與保留原因。</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 2 目次 ============ -->
+<section class="view" id="v-toc">
+  <h1>2　生成目次</h1>
+  <p class="lede">依編製要點格式 3 及 114 年度用印版目次排列。輸入各部分頁數即自動編頁碼；勾選「偶數頁起」的表件會從左頁開始，以便跨頁表左右對頁裝訂。預設頁數取自 114 年度用印版。</p>
+  <div class="grid2">
+    <div class="panel" style="min-width:0">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h3>書表與頁數</h3>
+        <div class="row"><button class="btn ghost" id="t-auto">只勾已載入的表</button><button class="btn" id="t-doc">下載 Word</button></div>
+      </div>
+      <div class="tbl-scroll"><table class="toctab" id="t-tab"></table></div>
+      <p class="hint">「已載入」表示上方已載入同表號的系統產製書表。附屬表 7、13 與參考表 1、4 系統未產製，請自行製作後勾選。</p>
+    </div>
+    <div class="sheetwrap"><div class="sheet" id="t-sheet"></div></div>
+  </div>
+</section>
+
+<!-- ============ 3 格式調整 ============ -->
+<section class="view" id="v-fmt">
+  <h1>3　各書表格式調整</h1>
+  <p class="lede">把系統產製的 .xls 整理成可直接列印裝訂的 Excel：補齊或統一表頭、清除系統縮排符號「ˉ」、套用千分位與百分比格式、設定 A4 版面與每頁重複標題列。</p>
+  <div class="grid2">
+    <div>
+      <div class="panel">
+        <h3>書表</h3>
+        <ul class="tlist" id="f-list"><li style="cursor:default;display:block" class="hint">尚未載入書表。</li></ul>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="f-one" disabled>下載這張</button>
+          <button class="btn ghost" id="f-all" disabled>下載勾選的（zip）</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>格式規則</h3>
+        <label class="f">本表名稱<input id="f-title"></label>
+        <label class="f">單位列<input id="f-unit"></label>
+        <label class="f">版面<select id="f-orient"><option value="portrait">A4 直式（編製要點規定）</option><option value="landscape">A4 橫式</option></select></label>
+        <label class="f">寬度<select id="f-fit"><option value="auto">自動：14 欄以內縮成一頁寬，較寬者依欄分頁（跨頁對頁）</option><option value="1">一律縮成一頁寬</option><option value="0">不縮放</option></select></label>
+        <div class="row">
+          <label class="f" style="flex:1">字型<select id="f-font"><option>標楷體</option><option>新細明體</option><option>微軟正黑體</option></select></label>
+          <label class="f" style="width:90px">內文字級<input id="f-size" type="number" value="10" min="7" max="14"></label>
+        </div>
+        <div class="chk"><input type="checkbox" id="f-zero"><label for="f-zero">金額 0 顯示為「－」</label></div>
+        <div class="chk"><input type="checkbox" id="f-fill"><label for="f-fill">標題列加淺綠底色（螢幕閱讀用，列印建議不加）</label></div>
+        <p class="hint">固定套用：清除「ˉ」改為全形空白縮排；文字型數字轉數值；金額 #,##0；百分比欄 0.00；表格框線；凍結窗格；每頁重複標題列；頁尾「第 N 頁」；水平置中。</p>
+      </div>
+    </div>
+    <div class="panel" style="min-width:0">
+      <div class="row" style="justify-content:space-between"><h3 id="f-ptitle">預覽</h3><span class="hint" id="f-pinfo"></span></div>
+      <div class="xprev" id="f-prev" style="margin-top:10px"><div class="empty" style="margin:16px">載入書表後在左側點選，即可預覽調整後的樣子。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 說明 ============ -->
+<section class="view" id="v-help">
+  <h1>使用說明</h1>
+  <div class="detail" style="margin-top:16px">
+    <div class="panel"><h3>準備</h3><ul>
+      <li>從會計系統匯出各決算書表 .xls，放在 <span class="mono">02_原始資料\系統產製書表\{年度}年系統產製\</span>，不要改檔名（工具靠檔名中的表號辨識）。</li>
+      <li>右上角填好機關名稱與年度；年度會依載入的檔名自動帶入。</li>
+      <li>點「載入系統產製書表」一次選取整個資料夾的檔案。</li></ul></div>
+    <div class="panel"><h3>產出與存放</h3><ul>
+      <li>總說明、目次下載為 Word（.doc），存到 <span class="mono">04_書表產製\01_總說明\</span>。</li>
+      <li>格式調整後的 Excel 依類別存到 <span class="mono">04_書表產製\02_主要表</span>～<span class="mono">05_會計報告</span>。</li>
+      <li>檔名依「{年度}_{書表名稱}_{版次}_{日期}」，修改時遞增版次，不覆蓋舊版。</li></ul></div>
+    <div class="panel"><h3>注意</h3><ul>
+      <li>紅字【待補】是系統書表沒有的資料（施政成果、平衡表變動原因等），須人工撰寫。</li>
+      <li>勾稽檢核有紅色 ✗ 時，先查明原因再送複核。</li>
+      <li>科目內容說明文字預設沿用上年度，請逐項確認。</li>
+      <li>所有處理都在瀏覽器內完成，資料不會送出；重新整理頁面即清除。</li></ul></div>
+  </div>
+  <div class="panel" style="margin-top:14px"><h3>系統書表表號對照</h3><div class="tbl-scroll"><table class="toctab" id="h-map"></table></div></div>
+</section>
+</main>
+<p class="foot gut">依據：中華民國 114 年度總決算編製作業手冊（決算書表名稱與格式）、114 年度行政院主計總處單位決算（用印版）目次。</p>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/exceljs.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const ST = { tables: {}, sel: null };
+const LS = { get(k, d) { try { const v = localStorage.getItem('jsb.' + k); return v == null ? d : v; } catch (e) { return d; } },
+             set(k, v) { try { localStorage.setItem('jsb.' + k, v); } catch (e) {} } };
+const yr = () => parseInt($('#yr').value, 10) || 114;
+const org = () => $('#org').value.trim() || '行政院主計總處';
+const today = () => { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); };
+function toast(s) { const t = $('#toast'); t.textContent = s; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600); }
+function save(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- 書表名稱對照（系統表號 → 書表名稱、目次位置） ---------- */
+const NAMES = {
+  1: '歲入來源別決算表', 2: '歲出政事別決算表', 3: '歲出機關別決算表', 4: '以前年度歲出政事別轉入數決算表', 5: '以前年度歲出機關別轉入數決算表',
+  6: '歲出用途別決算分析表', 7: '歲出用途別決算累計表', 8: '繳付公庫數分析表', 9: '公庫撥入數分析表', 10: '歲入餘絀(或減免、註銷)分析表',
+  11: '歲出保留分析表', 12: '歲出賸餘(或減免、註銷)分析表', 13: '人事費分析表', 14: '增購及汰換車輛明細表', 15: '補、捐(獎)助其他政府機關或團體個人經費報告表',
+  16: '委託辦理計畫(事項)經費報告表', 17: '出國計畫執行情形報告表', 18: '歲出按職能及經濟性綜合分類表', 20: '平衡表', 21: '收入支出表',
+  32: '平衡表科目明細表', 37: '長期投資、固定資產、遞耗資產及無形資產變動表', 39: '現金出納表', 40: '國有財產目錄總表'
+};
+const FOLDER = n => n <= 5 ? '02_主要表' : n <= 18 ? '03_附屬表' : n <= 37 ? '05_會計報告' : '04_參考表';
+
+/* ---------- 目次結構（114 年度用印版；p = 頁數，even = 自偶數頁起） ---------- */
+const TOC = [
+  { t: '總說明', key: 'zsm', p: 21, inc: true },
+  { t: '決算報表', ch: [
+    { t: '主要表', ch: [
+      { t: NAMES[1], no: 1, p: 4 }, { t: NAMES[2], no: 2, p: 4 }, { t: NAMES[3], no: 3, p: 6 },
+      { t: '以前年度歲入來源別轉入數決算表', p: 2, inc: false },
+      { t: NAMES[4], no: 4, p: 2 }, { t: NAMES[5], no: 5, p: 2 }] },
+    { t: '附屬表', ch: [
+      { t: NAMES[6], no: 6, p: 4 }, { t: NAMES[7], no: 7, p: 8 }, { t: NAMES[8], no: 8, p: 2 }, { t: NAMES[9], no: 9, p: 4 },
+      { t: '歲入保留分析表', p: 2, inc: false },
+      { t: NAMES[10], no: 10, p: 1 }, { t: NAMES[11], no: 11, p: 4 }, { t: NAMES[12], no: 12, p: 4 }, { t: NAMES[13], no: 13, p: 2 },
+      { t: NAMES[14], no: 14, p: 2, inc: false },
+      { t: NAMES[15], no: 15, p: 2 }, { t: NAMES[16], no: 16, p: 2 }, { t: NAMES[17], no: 17, p: 4 }, { t: NAMES[18], no: 18, p: 4 },
+      { t: '媒體政策及業務宣導經費彙計表', p: 2 }] }] },
+  { t: '會計報表', ch: [
+    { t: '主要表', ch: [{ t: NAMES[20], no: 20, p: 1 }, { t: NAMES[21], no: 21, p: 1, even: false }] },
+    { t: '附屬表', ch: [{ t: NAMES[32], no: 32, p: 50 }, { t: NAMES[37], no: 37, p: 2 }] }] },
+  { t: '參考表', ch: [
+    { t: '決算與會計收支對照表', p: 1 }, { t: NAMES[39], no: 39, p: 2, even: false }, { t: NAMES[40], no: 40, p: 1, even: false },
+    { t: '立法院審議通過中央政府總預算案、總決算審核報告決議、附帶決議及注意事項辦理情形報告表', p: 41 }] }
+];
+(function initToc(list, depth) { for (const x of list) { if (x.ch) initToc(x.ch, depth + 1); else { if (x.inc === undefined) x.inc = true; if (x.even === undefined) x.even = x.key !== 'zsm'; } } })(TOC, 0);
+
+/* ---------- 流程階段（README） ---------- */
+const STAGES = [
+  { nm: '蒐集原始資料', dir: '02_原始資料', do: ['會計系統匯出決算書表 .xls', '法定預算、追加減預算、預算分配', '月報、年度會計報告、明細分類帳', '財產增減表、銀行對帳單、存款證明'], chk: ['原始資料放入後不再修改', '系統書表年度與表號齊全'], out: ['系統產製書表（表 1～40）'] },
+  { nm: '整理調整', dir: '03_資料整理', do: ['會計科目與決算科目對照', '年終整理、轉入轉出分錄', '試算表與各科目彙總'], chk: ['調整一律留下紀錄', '試算平衡'], out: ['工作底稿'] },
+  { nm: '產製書表', dir: '04_書表產製', do: ['各書表格式調整（工具 3）', '總說明：財務報告簡述、財務狀況分析、施政成果（工具 1）', '目次與頁碼（工具 2）', '封面、封底'], chk: ['書表順序依編製要點', 'A4 直式橫書、雙面印刷', '跨頁表件左右對頁'], out: ['總說明', '主要表、附屬表、參考表', '會計報告'], tool: true },
+  { nm: '勾稽檢核', dir: '06_檢核', do: ['表與表間勾稽', '表與會計報告間勾稽', '預決算差異及與上年度比較'], chk: ['歲入實現數＝繳付公庫數', '歲出實現數＝公庫撥入數（本年度）', '平衡表固定資產淨額＝變動表期末帳面金額', '平衡表變動達 5 億元或 20% 須說明原因'], out: ['檢核紀錄、修正紀錄'] },
+  { nm: '複核簽核', dir: '07_複核與簽核', do: ['複核意見與回應', '陳核簽稿、函稿', '核定文件掃描'], chk: ['勾稽全數通過後才陳核'], out: ['核定文件'] },
+  { nm: '輸出送審', dir: '08_成果輸出', do: ['草稿 → 定稿 PDF', '送審電子檔', '裝訂成冊、用印'], chk: ['封面 120～150 磅淺綠色布紋銅版紙，加蓋機關印信', '封底加蓋機關長官及主辦會計人員職名章', '依規定送達有關機關'], out: ['定稿 PDF、送審電子檔'] },
+  { nm: '歷年歸檔', dir: '09_歷年歸檔', do: ['整個年度成果複製到 {年度} 子目錄'], chk: ['次年度比較時可找到上年度數字'], out: ['年度歸檔'] }
+];
+function renderFlow() {
+  $('#flow').innerHTML = STAGES.map((s, i) => `<div class="stage${s.tool ? ' hl' : ''}"><button class="card" data-i="${i}"><div class="no">階段 ${i + 1}</div><div class="nm">${s.nm}</div><div class="dir">${s.dir}</div>${s.tool ? '<span class="tag">本工作台</span>' : ''}</button></div>`).join('');
+  $$('#flow .card').forEach(b => b.onclick = () => showStage(+b.dataset.i));
+  showStage(2);
+}
+function showStage(i) {
+  const s = STAGES[i];
+  $$('#flow .card').forEach(b => b.classList.toggle('sel', +b.dataset.i === i));
+  const ul = a => '<ul>' + a.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>';
+  $('#flowdetail').innerHTML = `<h2>階段 ${i + 1}　${s.nm} <span class="mono hint">${s.dir}</span></h2><div class="detail" style="margin-top:10px"><div><div class="lab">工作項目</div>${ul(s.do)}</div><div><div class="lab">檢核重點</div>${ul(s.chk)}</div><div><div class="lab">產出</div>${ul(s.out)}</div></div>`;
+}
+
+/* ---------- 讀檔 ---------- */
+function gridOf(ws) {
+  if (!ws['!ref']) return [];
+  const R = XLSX.utils.decode_range(ws['!ref']), g = [];
+  for (let r = 0; r <= R.e.r; r++) { const row = []; for (let c = 0; c <= R.e.c; c++) { const x = ws[XLSX.utils.encode_cell({ r, c })]; row.push(x && x.v != null ? x.v : ''); } g.push(row); }
+  return g;
+}
+async function loadFiles(list) {
+  let n = 0, skip = [];
+  for (const f of list) {
+    const m = f.name.match(/^(\d{2,3})_(\d+)_/);
+    if (!m) { skip.push(f.name); continue; }
+    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellStyles: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const no = +m[2];
+    ST.tables[no] = { no, year: +m[1], file: f.name, ws, grid: gridOf(ws), name: NAMES[no] || f.name.replace(/^\d+_\d+_/, '').replace(/_\d{14}.*$/, '').replace(/^(決算編[制製][_-]?|決算書表[編製]*[_-]?)/, ''), pick: true };
+    $('#yr').value = m[1]; n++;
+  }
+  LS.set('yr', $('#yr').value);
+  renderChips(); renderToc(); renderFmtList(); renderNeed();
+  toast(`已載入 ${n} 個書表` + (skip.length ? `，${skip.length} 個檔名無法辨識表號已略過` : ''));
+}
+function renderChips() {
+  const nos = Object.keys(ST.tables).map(Number).sort((a, b) => a - b);
+  $('#chips').innerHTML = nos.length ? nos.map(n => `<span class="chip on" title="${esc(ST.tables[n].file)}">表${n}</span>`).join('') : '';
+  $('#loadhint').textContent = nos.length ? `已載入 ${nos.length} 個（${ST.tables[nos[0]].year} 年度）` : '檔案只在您的瀏覽器內處理，不會上傳。';
+}
+
+/* ---------- 共用：數值與儲存格 ---------- */
+const colL = c => { let s = ''; c++; while (c) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); } return s; };
+const isNumS = v => typeof v === 'number' || (typeof v === 'string' && /^\s*-?[\d,]+(\.\d+)?\s*$/.test(v) && /\d/.test(v));
+const num = v => typeof v === 'number' ? v : isNumS(v) ? parseFloat(String(v).replace(/[,\s]/g, '')) : 0;
+const clean = v => String(v ?? '').split('\n').pop().replace(/[ˉ\s　]/g, '');
+const nameOf = v => String(v ?? '').split('\n').filter(l => !/\d{6,}/.test(l)).join('').replace(/[ˉ\s\u3000]/g, '') || clean(v);
+const codeOf = v => (String(v).match(/(\d{10})/) || [])[1] || '';
+const fmtA = v => Math.round(v).toLocaleString('en-US');
+const fmtP = v => { const x = Math.round(v * 100) / 100; return (x === 100 ? '100' : x.toFixed(2)) + '%'; };
+
+/* ============ 1 總說明 ============ */
+const NEED = [[1, true, '歲入部分'], [3, true, '歲出部分'], [5, true, '以前年度部分'], [20, true, '平衡表重要科目、財務狀況分析'], [8, false, '勾稽：繳付公庫數'], [9, false, '統籌科目庫撥數'], [11, false, '保留原因'], [37, false, '勾稽：固定資產期末帳面金額']];
+function renderNeed() {
+  $('#z-need').innerHTML = NEED.map(([n, req, u]) => { const ok = !!ST.tables[n]; return `<li><span class="${ok ? 'pass' : (req ? 'fail' : '')}">${ok ? '✓' : (req ? '✗' : '–')}</span><div>表${n} ${NAMES[n]}<small>${u}${req ? '（必要）' : ''}</small></div></li>`; }).join('');
+}
+const DESC = {
+  '土地': '係本總處辦公房屋用地等', '土地改良物': '係本總處中部辦公室停車場等', '房屋建築及設備': '係本總處辦公房屋建築及其附屬之設備',
+  '機械及設備': '係電腦及印表機等設備', '交通及運輸設備': '係公務車輛及傳真機等設備', '雜項設備': '係辦公事務設備等', '購建中固定資產': '係本總處未完工程等',
+  '存入保證金': '係得標廠商繳納之履約保證金、保固保證金等', '應付保管款': '係本總處聘僱人員提撥之公、自提離職儲金',
+  '存出保證金': '為租用郵局專用信箱鎖鑰押金與有線電視租用數位機上盒保證金'
+};
+const GROUP_ONE = { '流動資產': '係專戶存款，為各項保管款及代收款收取之數', '無形資產': '係本總處電腦軟體等', '流動負債': '係應付代收款，為員工薪資代扣勞保、健保、公保、退撫基金及勞工提存金自付額等' };
+
+function genZSM() {
+  const T = ST.tables, Y = yr(), checks = [], figs = [];
+  const miss = [1, 3, 5, 20].filter(n => !T[n]);
+  if (miss.length) { toast('缺少必要書表：' + miss.map(n => '表' + n).join('、')); return null; }
+  const g = n => T[n] ? T[n].grid : [];
+  const at = (n, r, c) => (g(n)[r] || [])[c];
+  const V = (n, r, c) => num(at(n, r, c));
+  const ref = (n, r, c) => `表${n} ${colL(c)}${r + 1}`;
+  const A = (v, src) => { figs.push(src); return `<span class="n">${fmtA(v)}</span><span class="src">〔${src}〕</span>`; };
+  const AN = (n, r, c, sign = 1) => A(V(n, r, c) * sign, ref(n, r, c) + (sign < 0 ? '（取絕對值）' : ''));
+  const PN = (n, r, c) => `<span class="n">${fmtP(V(n, r, c))}</span><span class="src">〔${ref(n, r, c)}〕</span>`;
+  const PV = (v, src) => `<span class="n">${fmtP(v)}</span><span class="src">〔${src}〕</span>`;
+  const note = s => `<span class="src">〔${s}〕</span>`;
+  const TODO = s => `<span class="todo">【待補：${s}】</span>`;
+  const chk = (label, a, b, detail) => checks.push({ label, ok: Math.abs(a - b) < 1, detail: detail || `${fmtA(a)} ／ ${fmtA(b)}` });
+  const P = (html, i = 1, f = 0) => `<p style="margin-left:${i}cm;text-indent:${f}cm">${html}</p>`;
+  const cn = '一二三四五六七八九十';
+  const roman = ['I.', 'II.', 'III.', 'IV.', 'V.', 'VI.', 'VII.', 'VIII.', 'IX.', 'X.'];
+  const and = arr => arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join('、') + '及' + arr[arr.length - 1];
+  let h = '';
+  h += `<p class="c" style="font-size:16pt;font-weight:bold">${esc(org())}</p><p class="c" style="font-size:18pt;font-weight:bold">總　　說　　明</p><p class="c" style="font-size:14pt">中華民國 ${Y} 年度</p>`;
+  h += `<p class="src" style="font-size:9pt">藍字為系統產製書表帶入之數字，後附〔表號 儲存格〕；表號＝檔名「${Y}_序號_」之序號。紅字【待補】為系統書表無此資料、需人工填寫之處。</p>`;
+  h += P('一、財務報告之簡述', 0) + P('(一)本年度', 0.3) + P('1. 歲入部分', 0.6);
+
+  /* 表1 歲入 */
+  const g1 = g(1); let tot1 = -1; const comps = [];
+  g1.forEach((row, r) => { if (clean(row[4]) === '合計') tot1 = r; if (String(row[2]).trim() && clean(row[4]) && r > 5) comps.push({ r, name: clean(row[4]) }); });
+  if (tot1 < 0) tot1 = g1.length - 1;
+  const rev = V(1, tot1, 8);
+  chk('表1 各目實現數加總＝合計實現數', comps.reduce((s, x) => s + V(1, x.r, 8), 0), rev);
+  let t = `本年度歲入預算數 ${AN(1, tot1, 7)} 元，執行結果，決算實現數 ${AN(1, tot1, 8)} 元，占預算數之 ${PN(1, tot1, 13)}，包括`;
+  t += comps.map((x, k) => (k === comps.length - 1 && k ? '及' : (k ? '、' : '')) + x.name + ' ' + AN(1, x.r, 8) + ' 元').join('');
+  if (T[8]) {
+    const r8 = g(8).findIndex(row => clean(row[0]) === '合計');
+    const pay = r8 >= 0 ? V(8, r8, 9) : NaN;
+    chk('表1 歲入實現數＝表8 繳付公庫數', rev, pay);
+    t += Math.abs(rev - pay) < 1 ? '，均已全部解繳國庫' + note(`${ref(8, r8, 9)} 繳付公庫數 ${fmtA(pay)} 元，與實現數相符`) + '。' : '，' + TODO('繳庫情形；表8 繳付公庫數 ' + fmtA(pay) + ' 元與實現數不同') + '。';
+  } else t += '，' + TODO('繳庫情形（未載入表8）') + '。';
+  h += P(t, 0.9, 0.9);
+
+  /* 表3 歲出 */
+  h += P('2. 歲出部分', 0.6);
+  const g3 = g(3); let ag = g3.findIndex((row, r) => r > 6 && String(row[1]).trim() && isNumS(row[5]));
+  const items = [], tong = []; let cur = null;
+  for (let r = ag + 1; r < g3.length; r++) {
+    const row = g3[r], a = String(row[0]).trim(), c = String(row[2]).trim(), d = String(row[3]).trim();
+    if (a) { if (isNumS(row[10]) || isNumS(row[5])) tong.push({ r, name: nameOf(row[4]), code: codeOf(row[4]) }); continue; }
+    if (tong.length) continue;
+    if (c) { cur = { r, name: clean(row[4]), code: codeOf(row[4]), kids: [] }; items.push(cur); }
+    else if (d && cur) cur.kids.push({ r, name: clean(row[4]), code: codeOf(row[4]) });
+  }
+  /* 表11 保留原因 */
+  const reasons = {};
+  if (T[11]) { let k = null; g(11).forEach((row, r) => { const cd = codeOf(row[1]); if (cd) k = cd; else if (String(row[1]).trim()) k = null; if (k && String(row[9]).trim()) (reasons[k] = reasons[k] || []).push({ r, text: String(row[9]) }); }); }
+  const reasonOf = code => {
+    const list = reasons[code]; if (!list) return TODO('保留原因（未於表11找到）');
+    const parts = list.map(x => { const m = x.text.match(/[^，。；,]*?「[^」]+」[^，。；「,]*?(?:採購案|案|計畫)(?:\(含契約變更\)|（含契約變更）)?/); return m ? m[0].replace(/^辦理/, '') : null; });
+    const ok = parts.filter(Boolean);
+    const srcs = list.map(x => ref(11, x.r, 9)).join('、');
+    if (!ok.length) return TODO('保留原因摘要') + note(srcs);
+    return `上項保留數係辦理${ok.join('，以及')}，經以支出保留數轉入 ${Y + 1} 年度繼續執行。` + note(srcs + '，摘自保留原因說明，請確認文字');
+  };
+  chk('表3 各工作計畫實現數加總＝機關合計實現數', items.reduce((s, x) => s + V(3, x.r, 10), 0), V(3, ag, 10));
+  h += P(`本年度歲出預算數 ${AN(3, ag, 9)} 元(不含統籌科目)，執行結果，決算實現數 ${AN(3, ag, 10)} 元，保留數 ${AN(3, ag, 11)} 元，合共 ${AN(3, ag + 1, 11)} 元，占預算數 ${PN(3, ag, 13)}，賸餘數 ${AN(3, ag, 12, -1)} 元。依各工作計畫分述如下：`, 0.9, 0.9);
+  const plan = (x, label, ind) => {
+    const r = x.r; let s = `${label}${x.name}：預算數 ${AN(3, r, 9)} 元，執行結果，決算實現數 ${AN(3, r, 10)} 元，`;
+    if (V(3, r, 11) > 0) s += `保留數 ${AN(3, r, 11)} 元，合共 ${AN(3, r + 1, 11)} 元，`;
+    s += `占預算數 ${PN(3, r, 13)}，`;
+    s += Math.abs(V(3, r, 12)) < 0.5 ? '無賸餘數。' : `賸餘數 ${AN(3, r, 12, -1)} 元。`;
+    if (V(3, r, 11) > 0) s += reasonOf(x.code);
+    return P(s, ind + 0.6, -0.6);
+  };
+  const leaves = []; let k = 0; const fund = items.find(x => x.name.includes('預備金'));
+  for (const x of items) {
+    if (x === fund) continue; k++;
+    if (x.kids.length) { h += P(`(${k})${x.name}`, 1.2, -0.6); x.kids.forEach((y, j) => { h += plan(y, roman[j] + ' ', 1.3); leaves.push(y); }); }
+    else { h += plan(x, `(${k})`, 0.6); leaves.push(x); }
+  }
+  if (fund) {
+    k++; const r = fund.r; const used = leaves.filter(y => V(3, y.r + 1, 6) > 0);
+    chk('第一預備金：原預算數－動支數＝賸餘', V(3, r, 5) + V(3, r + 1, 6), V(3, r, 9));
+    chk('第一預備金動支數＝各計畫動支數合計', -V(3, r + 1, 6), used.reduce((s, y) => s + V(3, y.r + 1, 6), 0));
+    h += P(`(${k})${fund.name}：原預算數 ${AN(3, r, 5)} 元，` + (used.length ? '已動支於' + and(used.map(y => `「${y.name}」${AN(3, y.r + 1, 6)} 元`)) + '，' : '未動支，') + `賸餘 ${AN(3, r, 9)} 元。`, 1.2, -0.6);
+  }
+  if (tong.length) {
+    k++; h += P(`(${k})各統籌科目`, 1.2, -0.6);
+    const g9 = g(9);
+    tong.forEach((x, j) => {
+      const r9 = g9.findIndex(row => codeOf(row[0]) === x.code);
+      if (r9 >= 0) {
+        chk(`表9 ${x.name} 庫撥數＝表3 實現數`, V(9, r9, 9), V(3, x.r, 10));
+        const same = Math.abs(V(9, r9, 9) - V(3, x.r, 10)) < 1;
+        h += P(`${roman[j]}${x.name}：庫撥數 ${AN(9, r9, 9)} 元，` + (same ? '與決算實現數同' + note(`${ref(3, x.r, 10)} 實現數 ${fmtA(V(3, x.r, 10))} 元`) : `決算實現數 ${AN(3, x.r, 10)} 元，` + TODO('差異說明')) + '。', 1.9, -0.6);
+      } else h += P(`${roman[j]}${x.name}：決算實現數 ${AN(3, x.r, 10)} 元。` + (T[9] ? '' : TODO('庫撥數（未載入表9）')), 1.9, -0.6);
+    });
+  }
+  if (T[9]) { const r9 = g(9).findIndex(row => clean(row[0]) === '本年度'); const r3 = g3.findIndex(row => clean(row[4]) === '合計'); if (r9 >= 0 && r3 >= 0) chk('表9 本年度歲出實現數＝表3 合計實現數', V(9, r9, 1), V(3, r3, 10)); }
+
+  /* 表5 以前年度 */
+  h += P('(二)以前年度', 0.3);
+  const g5 = g(5); let t5 = g5.findIndex(row => clean(row[5]) === '合計'); const it5 = [];
+  g5.forEach((row, r) => { if (r > 6 && String(row[3]).trim() && clean(row[5])) it5.push({ r, name: clean(row[5]) }); });
+  if (t5 >= 0) {
+    const R = t5 + 1;
+    chk('表5 各目以前年度保留數加總＝合計', it5.reduce((s, x) => s + V(5, x.r + 1, 6), 0), V(5, R, 6));
+    let s = `以前年度歲出保留 ${AN(5, R, 6)} 元，執行結果，決算實現數 ${AN(5, R, 8)} 元`;
+    if (V(5, R, 7)) s += `，註銷數 ${AN(5, R, 7)} 元`;
+    if (V(5, R, 10)) s += `，未結清數 ${AN(5, R, 10)} 元`;
+    h += P(s + '，分述如下：', 0.6, 0.9);
+    it5.forEach((x, j) => { const r = x.r + 1; let s = `${j + 1}. ${x.name}：保留 ${AN(5, r, 6)} 元，執行結果，決算實現數 ${AN(5, r, 8)} 元`; if (V(5, r, 7)) s += `，註銷數 ${AN(5, r, 7)} 元`; if (V(5, r, 10)) s += `，未結清數 ${AN(5, r, 10)} 元`; h += P(s + '。', 1.0, -0.5); });
+  } else h += P('本年度無以前年度歲出保留數。', 0.6, 0.9);
+
+  /* 表20 平衡表 */
+  const g20 = g(20), ents = { L: [], R: [] };
+  g20.forEach((row, r) => { [['L', 0], ['R', 3]].forEach(([side, c]) => {
+    const s = String(row[c] ?? '').replace(/\n/g, '').replace(/[\s　ˉ]/g, ''); const less = /^減：/.test(s);
+    const m = s.replace(/^減：/, '').match(/^(\d+)(.+)$/); if (!m) return;
+    ents[side].push({ r, c, code: m[1], name: m[2], less, cur: num(row[c + 1]), prev: num(row[c + 2]) }); }); });
+  const groupsOf = side => {
+    const out = []; let gp = null;
+    for (const e of ents[side]) {
+      if (e.code.length === 2) { gp = { ...e, leaves: [] }; out.push(gp); }
+      else if (e.code.length >= 6 && gp && e.code.startsWith(gp.code)) {
+        const col = colL(e.c + 1), pcol = colL(e.c + 2);
+        if (e.less && gp.leaves.length) { const L = gp.leaves[gp.leaves.length - 1]; L.cur += e.cur; L.prev += e.prev; L.src += `+${col}${e.r + 1}`; L.psrc += `+${pcol}${e.r + 1}`; }
+        else gp.leaves.push({ name: e.name, cur: e.cur, prev: e.prev, src: `表20 ${col}${e.r + 1}`, psrc: `${pcol}${e.r + 1}` });
+      }
+    }
+    return out;
+  };
+  const GA = groupsOf('L'), GL = groupsOf('R'); const net = ents.R.find(e => e.code === '3');
+  const totA = ents.L.find(e => e.code === '1'), totL = ents.R.find(e => e.code === '2');
+  if (totA && totL && net) chk('平衡表：資產＝負債＋淨資產', totA.cur, totL.cur + net.cur);
+  const g37 = g(37);
+  h += P('(三)平衡表重要科目之金額及內容', 0.3);
+  const gText = (gp, j) => {
+    const G = A(gp.cur, `表20 ${colL(gp.c + 1)}${gp.r + 1}`); let s = `(${j + 1})${gp.name}總額 ${G} 元，`;
+    chk(`平衡表 ${gp.name} 明細加總＝總額`, gp.leaves.reduce((a, b) => a + b.cur, 0), gp.cur);
+    if (gp.leaves.length === 1 && GROUP_ONE[gp.name]) s += GROUP_ONE[gp.name];
+    else if (gp.leaves.length === 1) { const L = gp.leaves[0]; s += `係${L.name} ${A(L.cur, L.src)} 元` + (DESC[L.name] ? '，' + DESC[L.name] : '，' + TODO('內容說明')); }
+    else s += '包括' + gp.leaves.map((L, i) => (i ? '；' : '') + `${L.name} ${A(L.cur, L.src)} 元，` + (DESC[L.name] || TODO('內容說明'))).join('');
+    if (T[37] && gp.code === '14') {
+      gp.leaves.forEach(L => { const r = g37.findIndex(row => clean(row[0]) === L.name); if (r >= 0) chk(`${L.name} 淨額＝表37 期末帳面金額`, L.cur, V(37, r, 6)); });
+      s += '。' + note('各項帳面淨額已與表37 G欄期末帳面金額勾稽；科目內容文字沿用上年度，請確認');
+    } else s += '。';
+    return P(s, 1.5, -0.6);
+  };
+  h += P('1. 資產', 0.6) + GA.map(gText).join('');
+  h += P('2. 負債', 0.6) + GL.filter(x => !x.code.startsWith('3')).map(gText).join('');
+  if (net) h += P(`3. 淨資產：淨資產總額 ${A(net.cur, `表20 ${colL(net.c + 1)}${net.r + 1}`)} 元，係資產減除負債後之餘額。`, 1.2, -0.6);
+
+  /* 二、財務狀況之分析 */
+  const th = $('#z-th').value;
+  h += '<p>&nbsp;</p>' + P('二、財務狀況之分析', 0) + P('平衡表變動情形分析：', 0.3, 0.6);
+  const anal = (title, groups) => {
+    let s = P(title, 0.3);
+    groups.forEach((gp, j) => {
+      const big = [], rest = [];
+      gp.leaves.forEach(L => { const d = L.cur - L.prev, p = L.prev ? d / Math.abs(L.prev) * 100 : null; L.d = d; L.p = p;
+        if (Math.abs(d) < 0.5) rest.push(L); else if (p === null || Math.abs(p) >= 20 || (th === '1' && Math.abs(d) >= 5e8)) big.push(L); else rest.push(L); });
+      let t = `${j + 1}. ${gp.name}：`;
+      if (!big.length) t += gp.leaves.some(L => Math.abs(L.d) >= 0.5) ? `本年度較上年度金額變動${gp.leaves.length > 1 ? '均' : ''}未達${th === '1' ? ' 5 億元或' : ''} 20%。` : '本年度較上年度金額無變動。';
+      else {
+        t += big.map((L, i) => { const row37 = T[37] ? g37.findIndex(row => clean(row[0]) === L.name) : -1;
+          const hint = row37 >= 0 ? `（參考表37 第${row37 + 1}列：本年度增加 ${fmtA(V(37, row37, 3))} 元、減少 ${fmtA(V(37, row37, 4))} 元）` : '';
+          return (i ? '；' : '') + `${L.name} ${A(L.cur, L.src)} 元，較上年度${L.d > 0 ? '增加' : '減少'} ${A(Math.abs(L.d), L.src + ' − 上年度 ' + L.psrc)} 元` + (L.p === null ? '' : `或 ${PV(Math.abs(L.p), '增減數÷上年度')}`) + '，主要係' + TODO('增減原因' + hint); }).join('');
+        if (rest.length) t += `；其餘科目本年度較上年度金額變動未達${th === '1' ? ' 5 億元或' : ''} 20%`;
+        t += '。';
+      }
+      s += P(t, 1.2, -0.6);
+    });
+    return s;
+  };
+  h += anal('(一)資產', GA) + anal('(二)負債', GL.filter(x => !x.code.startsWith('3')));
+  h += P('未來或有給付責任之揭露說明：' + TODO('依編製要點格式 4 說明法令依據、精（估）算基礎、本年度與上年度金額及差異原因；無者敘明「無」'), 0.3, 0);
+
+  /* 三、施政成果 */
+  h += '<p>&nbsp;</p>' + P('三、重要施政計畫執行成果之說明', 0) + P('(一)已完成施政計畫重點概述', 0.3);
+  h += P(TODO(`${Y} 年度已完成施政計畫重點（系統產製書表無此資料，依工作計畫順序撰寫，請各業務單位提供）`), 0.9, 0);
+  h += P('(二)施政計畫分項說明－本年度部分', 0.3);
+  const th5 = '<tr><th style="width:16%">工作計畫名稱</th><th style="width:16%">重要計畫項目</th><th style="width:22%">實施內容</th><th style="width:32%">已完成或未完成之說明</th><th style="width:14%">因應改善措施</th></tr>';
+  const wps = items.filter(x => x !== fund);
+  h += '<table>' + th5 + wps.map((x, j) => `<tr><td>${cn[j] || j + 1}、${x.name}</td><td>${TODO('')}</td><td>${TODO('')}</td><td>${TODO('')}</td><td></td></tr>`).join('') + '</table>';
+  h += P('(三)施政計畫分項說明－以前年度部分', 0.3);
+  const prevLeaves = []; if (t5 >= 0) g5.forEach((row, r) => { if (r > 6 && r < t5 && (String(row[4]).trim() || (String(row[3]).trim() && !String((g5[r + 4] || [])[4]).trim())) && codeOf(row[5])) prevLeaves.push({ r, name: clean(row[5]) }); });
+  h += prevLeaves.length ? '<table>' + th5 + prevLeaves.map((x, j) => { const r = x.r + 1; const done = Math.abs(V(5, r, 6) - V(5, r, 8)) < 1;
+    return `<tr><td>${cn[j] || j + 1}、${x.name}</td><td>${x.name}</td><td>${TODO('保留案名稱')}</td><td>保留數 ${fmtA(V(5, r, 6))} 元，${done ? `已於 ${Y} 年度執行完畢，` : ''}決算實現數 ${fmtA(V(5, r, 8))} 元${V(5, r, 7) ? `，註銷數 ${fmtA(V(5, r, 7))} 元` : ''}${V(5, r, 10) ? `，未結清數 ${fmtA(V(5, r, 10))} 元` : ''}。${note(ref(5, r, 6) + '、' + colL(8) + (r + 1))}${TODO('保留原因及付款月份')}</td><td></td></tr>`; }).join('') + '</table>' : P('無。', 0.9, 0);
+  return { html: h, checks, figs };
+}
+function runZSM() {
+  const res = genZSM(); if (!res) return;
+  const sh = $('#z-sheet'); sh.innerHTML = res.html; sh.contentEditable = 'true'; sh.classList.toggle('tag', $('#z-tag').checked);
+  const bad = res.checks.filter(c => !c.ok).length;
+  $('#z-sum').textContent = bad ? `${bad} 項不符` : `${res.checks.length} 項全部相符`; $('#z-sum').className = 'pill ' + (bad ? 'no' : 'ok');
+  $('#z-checks').innerHTML = res.checks.map(c => `<li><span class="${c.ok ? 'pass' : 'fail'}">${c.ok ? '✓' : '✗'}</span><div>${esc(c.label)}<small>${esc(c.detail)}</small></div></li>`).join('');
+  ['#z-doc', '#z-copy'].forEach(s => $(s).disabled = false);
+  toast(`已產生總說明：帶入 ${res.figs.length} 個數字，${res.checks.length} 項勾稽`);
+}
+function wordDoc(bodyHtml, extraCss = '') {
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]--><style>@page Section1{size:21.0cm 29.7cm;margin:2.0cm 2.2cm 2.0cm 2.2cm}div.Section1{page:Section1}body,p,td,th{font-family:"標楷體";font-size:13pt}p{margin:0;line-height:22pt}.c{text-align:center}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:3px 5px;vertical-align:top;font-size:11pt}.todo{color:#C00000}.src{color:#1F4E9A;font-size:8pt}.n{}${extraCss}</style></head><body><div class="Section1">${bodyHtml}</div></body></html>`;
+}
+function zsmDoc() {
+  const clone = $('#z-sheet').cloneNode(true);
+  if (!$('#z-tag').checked) clone.querySelectorAll('.src').forEach(e => e.remove()); else clone.querySelectorAll('.n').forEach(e => e.style.color = '#1F4E9A');
+  const name = `${yr()}_總說明${$('#z-tag').checked ? '_含數據來源' : ''}_v1_${today()}.doc`;
+  save(new Blob(['﻿', wordDoc(clone.innerHTML)], { type: 'application/msword' }), name);
+  toast('已下載 ' + name);
+}
+
+/* ============ 2 目次 ============ */
+function tocFlat() {
+  const out = [];
+  TOC.forEach((a, i) => {
+    if (!a.ch) { out.push({ lv: 0, node: a, label: '一二三四五'[i] + '、' + a.t }); return; }
+    out.push({ lv: 0, head: true, node: a, label: '一二三四五'[i] + '、' + a.t });
+    const sub = a.ch.some(x => x.ch);
+    a.ch.forEach((b, j) => {
+      if (b.ch) { out.push({ lv: 1, head: true, node: b, label: `(${'一二三四五'[j]})${b.t}` }); b.ch.forEach(c => out.push({ lv: 2, node: c, parent: b })); }
+      else out.push({ lv: sub ? 2 : 1, node: b, parent: a });
+    });
+  });
+  // 依勾選重編項次與頁碼
+  let p = 1, cnt = new Map();
+  for (const x of out) {
+    if (x.head) continue;
+    const n = x.node;
+    if (x.parent) { if (n.inc) { const c = (cnt.get(x.parent) || 0) + 1; cnt.set(x.parent, c); x.label = `${c}.${n.t}`; } else x.label = n.t; }
+    if (!n.inc) { x.range = ''; continue; }
+    if (n.even && p % 2 === 1 && p > 1) p++;
+    const pages = Math.max(1, n.p | 0); x.range = pages === 1 ? `${p}` : `${p}－${p + pages - 1}`; x.from = p; p += pages;
+  }
+  // 標題列只在底下有勾選項目時顯示
+  out.forEach(x => { if (x.head) { const has = n => n.ch ? n.ch.some(has) : n.inc; x.show = has(x.node); } else x.show = x.node.inc; });
+  return { out, last: p - 1 };
+}
+function renderToc() {
+  const { out, last } = tocFlat();
+  $('#t-tab').innerHTML = '<tr><th>納入</th><th>書表</th><th>頁數</th><th title="跨頁表件自偶數頁起，以左右對頁">偶數頁起</th><th>頁碼</th><th>系統書表</th></tr>' + out.map((x, i) => {
+    if (x.head) return `<tr class="h"><td></td><td class="lv${x.lv}" colspan="5">${esc(x.label)}</td></tr>`;
+    const n = x.node, loaded = n.no ? (ST.tables[n.no] ? '<span class="pill ok">已載入</span>' : `<span class="pill no">表${n.no}</span>`) : (n.key ? '' : '<span class="pill no">自行製作</span>');
+    return `<tr><td><input type="checkbox" data-i="${i}" data-k="inc" ${n.inc ? 'checked' : ''} aria-label="納入 ${esc(n.t)}"></td><td class="lv${x.lv}">${esc(x.label)}</td><td><input type="number" min="1" data-i="${i}" data-k="p" value="${n.p}" aria-label="${esc(n.t)} 頁數"></td><td><input type="checkbox" data-i="${i}" data-k="even" ${n.even ? 'checked' : ''} aria-label="${esc(n.t)} 自偶數頁起"></td><td class="pg">${x.range}</td><td>${loaded}</td></tr>`;
+  }).join('');
+  $$('#t-tab input').forEach(el => el.onchange = () => { const n = out[+el.dataset.i].node; const k = el.dataset.k; n[k] = el.type === 'checkbox' ? el.checked : +el.value; renderToc(); });
+  $('#t-sheet').innerHTML = tocHtml(out) + `<p class="hint" style="margin-top:18px;font:9pt var(--f-body);color:#666">共 ${last} 頁</p>`;
+}
+function tocHtml(out, word) {
+  let h = `<p class="c" style="font-size:16pt;font-weight:bold">${esc(org())}</p><p class="c" style="font-size:20pt;font-weight:bold;letter-spacing:4pt">單位決算目次</p><p class="c" style="font-size:13pt;margin-bottom:14pt">中 華 民 國 ${yr()} 年 度</p>`;
+  const ind = { 0: 0, 1: 0.8, 2: 1.6 };
+  for (const x of out) {
+    if (!x.show) continue;
+    const ml = `margin-left:${ind[x.lv]}cm`;
+    if (x.head) { h += `<p style="${ml};line-height:24pt">${esc(x.label)}</p>`; continue; }
+    h += word ? `<p style="${ml};line-height:24pt;tab-stops:right dotted 16.4cm">${esc(x.label)}<span style="mso-tab-count:1"> </span>${x.range}</p>`
+              : `<p class="tocline" style="${ml};line-height:24pt"><span>${esc(x.label)}</span><span class="dots"></span><span class="p">${x.range}</span></p>`;
+  }
+  return h;
+}
+function tocDoc() {
+  const { out } = tocFlat(); const name = `${yr()}_目次_v1_${today()}.doc`;
+  save(new Blob(['﻿', wordDoc(tocHtml(out, true))], { type: 'application/msword' }), name); toast('已下載 ' + name);
+}
+
+/* ============ 3 格式調整 ============ */
+const OPT = {}; // 每張表的個別設定
+function optOf(no) {
+  const t = ST.tables[no];
+  if (!OPT[no]) {
+    const unitCell = t.grid.slice(0, 6).flat().find(v => /單位[:：]/.test(String(v)));
+    OPT[no] = { title: t.name, unit: unitCell ? String(unitCell).replace(':', '：').replace(';', '；').replace(/;/g, '；') : '單位：新臺幣元', orient: 'portrait' };
+  }
+  return OPT[no];
+}
+function model(no) {
+  const t = ST.tables[no], o = optOf(no), g = t.grid.map(r => r.slice());
+  const ncol = Math.max(...g.map(r => r.length), 1);
+  let top = 0; while (top < g.length - 1 && g[top].every(v => String(v).trim() === '')) top++;
+  let titleEnd = -1; for (let r = top; r < Math.min(top + 6, g.length); r++) if (g[r].some(v => /單位[:：]/.test(String(v)))) titleEnd = r;
+  let last = g.length - 1; while (last > top && g[last].every(v => String(v).replace(/[\s　]/g, '') === '')) last--;
+  const rows = [], kinds = []; // kinds: t1 標題 / t2 副標 / hd 表頭 / d 資料 / nt 備註
+  const add = (cells, kind) => { rows.push(cells); kinds.push(kind); };
+  let off;
+  if (titleEnd < 0) {
+    const e = Array(ncol).fill('');
+    add(Object.assign(e.slice(), { 0: org() }), 't2'); add(Object.assign(e.slice(), { 0: o.title }), 't1');
+    const r3 = e.slice(); r3[0] = `中華民國 ${yr()} 年度`; r3[ncol - 1] = o.unit; add(r3, 'yr');
+    off = 3 - top;
+  } else off = -top;
+  const hs = (titleEnd < 0 ? top : titleEnd + 1);
+  const merges = (t.ws['!merges'] || []).filter(m => m.s.r >= top && m.e.r <= last).map(m => ({ s: { r: m.s.r + off, c: m.s.c }, e: { r: m.e.r + off, c: m.e.c } }));
+  let he = hs; (t.ws['!merges'] || []).forEach(m => { if (m.s.r >= hs && m.s.r <= hs + 1) he = Math.max(he, m.e.r); });
+  if (he > hs + 6) he = hs;
+  let noteFrom = Infinity;
+  for (let r = top; r <= last; r++) {
+    const cells = g[r].map(v => typeof v === 'string' ? (isNumS(v) && !/^0\d/.test(v.trim()) ? num(v) : v.replace(/ˉ/g, '　').replace(/\s+$/, '')) : v);
+    while (cells.length < ncol) cells.push('');
+    if (r > he && /^(備註|說明|附註|註)[:：]?/.test(String(cells[0]).trim())) noteFrom = Math.min(noteFrom, r);
+    let kind = r < hs ? (r === titleEnd ? 'yr' : (r === top + 1 || cells.some(v => /表/.test(String(v))) ? 't1' : 't2')) : r <= he ? 'hd' : r >= noteFrom ? 'nt' : 'd';
+    if (titleEnd >= 0 && r < hs) { // 系統已有表頭：機關名稱改為設定值
+      if (cells.some(v => /主計|政府|部|局|署|處/.test(String(v))) && kind !== 'yr' && !cells.some(v => /表/.test(String(v)))) kind = 't2';
+    }
+    add(cells, kind);
+  }
+  const pct = new Set(); rows.forEach((r, i) => { if (kinds[i] === 'hd') r.forEach((v, c) => { if (/%|％|比率/.test(String(v))) pct.add(c); }); });
+  const cols = (t.ws['!cols'] || []);
+  const widths = Array.from({ length: ncol }, (_, c) => { const w = cols[c] && (cols[c].wch || (cols[c].wpx && cols[c].wpx / 7)); if (w) return Math.max(3, Math.min(w, 60));
+    let m = 4; rows.forEach((r, i) => { if (kinds[i] === 'd' || kinds[i] === 'hd') { const s = typeof r[c] === 'number' ? fmtA(r[c]) : String(r[c]).split('\n').reduce((a, b) => Math.max(a, b.length * (/[^\x00-\xff]/.test(b) ? 2 : 1)), 0); m = Math.max(m, s); } }); return Math.min(m + 1, 40); });
+  return { rows, kinds, merges, ncol, pct, widths, hdFrom: kinds.indexOf('hd'), hdTo: kinds.lastIndexOf('hd'), title: o.title, unit: o.unit, orient: o.orient };
+}
+function fitOf(m) { const v = $('#f-fit').value; return v === 'auto' ? m.ncol <= 14 : v === '1'; }
+function renderFmtList() {
+  const nos = Object.keys(ST.tables).map(Number).sort((a, b) => a - b);
+  if (!nos.length) return;
+  $('#f-list').innerHTML = nos.map(n => `<li data-n="${n}" class="${ST.sel === n ? 'sel' : ''}"><input type="checkbox" data-n="${n}" ${ST.tables[n].pick ? 'checked' : ''} aria-label="勾選表${n}"><span class="mono">表${n}</span><span>${esc(ST.tables[n].name)}</span></li>`).join('');
+  $$('#f-list li').forEach(li => li.onclick = e => { if (e.target.tagName === 'INPUT') { ST.tables[+e.target.dataset.n].pick = e.target.checked; return; } selectTable(+li.dataset.n); });
+  ['#f-one', '#f-all'].forEach(s => $(s).disabled = false);
+  if (ST.sel == null || !ST.tables[ST.sel]) selectTable(nos[0]);
+}
+function selectTable(n) {
+  ST.sel = n; const o = optOf(n);
+  $('#f-title').value = o.title; $('#f-unit').value = o.unit; $('#f-orient').value = o.orient;
+  $$('#f-list li').forEach(li => li.classList.toggle('sel', +li.dataset.n === n));
+  previewFmt();
+}
+function previewFmt() {
+  if (ST.sel == null) return;
+  const m = model(ST.sel), zero = $('#f-zero').checked, fill = $('#f-fill').checked;
+  const cover = new Map(), span = new Map();
+  m.merges.forEach(g => { span.set(g.s.r + ',' + g.s.c, g); for (let r = g.s.r; r <= g.e.r; r++) for (let c = g.s.c; c <= g.e.c; c++) if (r !== g.s.r || c !== g.s.c) cover.set(r + ',' + c, 1); });
+  const maxRows = Math.min(m.rows.length, 120);
+  let h = '<table><colgroup>' + m.widths.map(w => `<col style="width:${Math.round(w * 7.5)}px">`).join('') + '</colgroup>';
+  for (let r = 0; r < maxRows; r++) {
+    const k = m.kinds[r]; h += '<tr>';
+    if (k === 't1' || k === 't2') { const txt = k === 't2' ? org() : m.rows[r].filter(v => String(v).trim()).join(''); h += `<td class="t1" colspan="${m.ncol}" style="${k === 't2' ? 'font-size:12pt' : ''}">${esc(k === 't1' && m.kinds.indexOf('t1') === r ? m.title : txt)}</td></tr>`; continue; }
+    if (k === 'yr') { h += `<td colspan="${Math.max(1, m.ncol - 3)}" style="text-align:center">中華民國 ${yr()} 年度</td><td colspan="${Math.min(3, m.ncol)}" style="text-align:right">${esc(m.unit)}</td></tr>`; continue; }
+    for (let c = 0; c < m.ncol; c++) {
+      if (cover.has(r + ',' + c)) continue;
+      const g = span.get(r + ',' + c), v = m.rows[r][c];
+      const isN = typeof v === 'number';
+      const txt = isN ? (m.pct.has(c) ? v.toFixed(2) : (v === 0 && zero ? '－' : (Number.isInteger(v) ? fmtA(v) : v.toLocaleString('en-US', { maximumFractionDigits: 6 })))) : String(v);
+      const cls = [k === 'nt' ? '' : 'b', isN ? 'num' : '', k === 'hd' ? 'hd' : ''].join(' ');
+      h += `<td class="${cls}"${g ? ` rowspan="${g.e.r - g.s.r + 1}" colspan="${g.e.c - g.s.c + 1}"` : ''}${k === 'hd' && fill ? ' style="background:#dcebdc"' : ''}>${esc(txt)}</td>`;
+    }
+    h += '</tr>';
+  }
+  h += '</table>';
+  $('#f-prev').innerHTML = h;
+  $('#f-ptitle').textContent = `表${ST.sel}　${m.title}`;
+  $('#f-pinfo').textContent = `${m.rows.length} 列 × ${m.ncol} 欄 · A4 ${m.orient === 'portrait' ? '直式' : '橫式'} · ${fitOf(m) ? '縮成一頁寬' : '依欄分頁'}${m.rows.length > maxRows ? ' · 預覽前 120 列' : ''}`;
+}
+async function buildXlsx(no) {
+  const m = model(no), font = $('#f-font').value, size = +$('#f-size').value || 10, zero = $('#f-zero').checked, fill = $('#f-fill').checked;
+  const wb = new ExcelJS.Workbook(); wb.creator = '決算書表工作台';
+  const fit = fitOf(m);
+  const ws = wb.addWorksheet(m.title.replace(/[\\/?*\[\]:]/g, '').slice(0, 31) || ('表' + no), {
+    pageSetup: { paperSize: 9, orientation: m.orient, fitToPage: fit, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+      margins: { left: 0.5, right: 0.5, top: 0.6, bottom: 0.7, header: 0.3, footer: 0.3 } },
+    headerFooter: { oddFooter: `&C&"${font}"第 &P 頁` },
+    views: m.hdTo >= 0 ? [{ state: 'frozen', ySplit: m.hdTo + 1 }] : []
+  });
+  if (m.hdFrom >= 0) ws.pageSetup.printTitlesRow = `${m.hdFrom + 1}:${m.hdTo + 1}`;
+  ws.columns = m.widths.map(w => ({ width: w }));
+  const intF = zero ? '#,##0;-#,##0;"－"' : '#,##0';
+  const thin = { style: 'thin', color: { argb: 'FF000000' } }, box = { top: thin, left: thin, bottom: thin, right: thin };
+  m.rows.forEach((cells, r) => {
+    const k = m.kinds[r], row = ws.getRow(r + 1);
+    if (k === 't1' || k === 't2') {
+      const txt = (k === 't1' && m.kinds.indexOf('t1') === r) ? m.title : (k === 't2' ? org() : cells.filter(v => String(v).trim()).join(''));
+      const c = row.getCell(1); c.value = txt; c.font = { name: font, size: k === 't1' ? 16 : 13, bold: true }; c.alignment = { horizontal: 'center', vertical: 'middle' };
+      row.height = k === 't1' ? 26 : 20; try { ws.mergeCells(r + 1, 1, r + 1, m.ncol); } catch (e) {} return;
+    }
+    if (k === 'yr') {
+      const a = row.getCell(1); a.value = `中華民國 ${yr()} 年度`; a.font = { name: font, size: 12 }; a.alignment = { horizontal: 'center' };
+      const split = Math.max(1, m.ncol - 3); try { ws.mergeCells(r + 1, 1, r + 1, split); } catch (e) {}
+      if (m.ncol > 1) { const b = row.getCell(split + 1); b.value = m.unit; b.font = { name: font, size: 10 }; b.alignment = { horizontal: 'right' }; try { if (split + 1 < m.ncol) ws.mergeCells(r + 1, split + 1, r + 1, m.ncol); } catch (e) {} }
+      return;
+    }
+    cells.forEach((v, c) => {
+      const cell = row.getCell(c + 1); cell.value = v === '' ? null : v;
+      cell.font = { name: font, size: k === 'hd' ? size : size, bold: k === 'hd' };
+      if (typeof v === 'number') { cell.numFmt = m.pct.has(c) ? '0.00' : (Number.isInteger(v) ? intF : '#,##0.00####'); cell.alignment = { horizontal: 'right', vertical: 'top' }; }
+      else cell.alignment = { horizontal: k === 'hd' ? 'center' : 'left', vertical: k === 'hd' ? 'middle' : 'top', wrapText: true };
+      if (k !== 'nt') cell.border = box;
+      if (k === 'hd' && fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCEBDC' } };
+    });
+  });
+  m.merges.forEach(g => { if (['t1', 't2', 'yr'].includes(m.kinds[g.s.r])) return; try { ws.mergeCells(g.s.r + 1, g.s.c + 1, g.e.r + 1, g.e.c + 1); } catch (e) {} });
+  const buf = await wb.xlsx.writeBuffer();
+  return { buf, name: `${yr()}_${m.title.replace(/[\\/:*?"<>|]/g, '')}_v1_${today()}.xlsx`, folder: FOLDER(no) };
+}
+async function dlOne() { if (ST.sel == null) return; const x = await buildXlsx(ST.sel); save(new Blob([x.buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), x.name); toast('已下載 ' + x.name); }
+async function dlAll() {
+  const nos = Object.keys(ST.tables).map(Number).filter(n => ST.tables[n].pick).sort((a, b) => a - b);
+  if (!nos.length) { toast('請先勾選要下載的書表'); return; }
+  const zip = new JSZip();
+  for (const n of nos) { const x = await buildXlsx(n); zip.file(`${x.folder}/${x.name}`, x.buf); }
+  const name = `${yr()}_書表格式調整_v1_${today()}.zip`;
+  save(await zip.generateAsync({ type: 'blob' }), name); toast(`已打包 ${nos.length} 張書表`);
+}
+
+/* ---------- 事件 ---------- */
+function go(v) { $$('section.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v)); $$('nav.menu button').forEach(b => b.toggleAttribute('aria-current', b.dataset.v === v)); $$('nav.menu button[aria-current]').forEach(b => b.setAttribute('aria-current', 'page')); LS.set('view', v); window.scrollTo(0, 0); }
+$$('nav.menu button').forEach(b => b.onclick = () => go(b.dataset.v));
+$$('[data-go]').forEach(a => a.onclick = () => go(a.dataset.go));
+$('#files').onchange = e => loadFiles([...e.target.files]);
+const dz = $('#drop');
+['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || !e.relatedTarget) dz.classList.remove('over'); }));
+document.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files.length) loadFiles([...e.dataTransfer.files]); });
+$('#z-gen').onclick = runZSM; $('#z-doc').onclick = zsmDoc;
+$('#z-tag').onchange = () => $('#z-sheet').classList.toggle('tag', $('#z-tag').checked);
+$('#z-copy').onclick = async () => { const s = $('#z-sheet'); const txt = [...s.querySelectorAll('p,tr')].map(e => e.tagName === 'TR' ? [...e.children].map(td => td.innerText).join('\t') : e.innerText).join('\n'); try { await navigator.clipboard.writeText(txt); toast('已複製全文'); } catch (e) { const r = document.createRange(); r.selectNodeContents(s); getSelection().removeAllRanges(); getSelection().addRange(r); toast('請按 Ctrl+C 複製已選取的文字'); } };
+$('#z-fn').textContent = `${yr()}_總說明_v1_${today()}.doc`;
+$('#t-doc').onclick = tocDoc;
+$('#t-auto').onclick = () => { (function w(l) { l.forEach(x => { if (x.ch) w(x.ch); else if (x.no) x.inc = !!ST.tables[x.no]; }); })(TOC); renderToc(); toast('已依載入的系統書表勾選'); };
+['#f-title', '#f-unit', '#f-orient'].forEach(s => $(s).oninput = () => { if (ST.sel == null) return; const o = optOf(ST.sel); o.title = $('#f-title').value; o.unit = $('#f-unit').value; o.orient = $('#f-orient').value; previewFmt(); });
+['#f-fit', '#f-zero', '#f-fill', '#f-font', '#f-size'].forEach(s => $(s).onchange = previewFmt);
+$('#f-one').onclick = dlOne; $('#f-all').onclick = dlAll;
+['#yr', '#org'].forEach(s => $(s).oninput = () => { LS.set(s.slice(1), $(s).value); renderToc(); $('#z-fn').textContent = `${yr()}_總說明_v1_${today()}.doc`; if (ST.sel != null) previewFmt(); });
+$('#yr').value = LS.get('yr', '114'); $('#org').value = LS.get('org', '行政院主計總處');
+$('#h-map').innerHTML = '<tr><th>表號</th><th>書表名稱</th><th>存放資料夾（04_書表產製）</th></tr>' + Object.entries(NAMES).map(([n, t]) => `<tr><td class="mono">表${n}</td><td>${t}</td><td class="mono">${FOLDER(+n)}</td></tr>`).join('');
+renderFlow(); renderToc(); renderNeed();
+const v0 = (location.hash || '').slice(1) || LS.get('view', 'flow'); if (['flow', 'zsm', 'toc', 'fmt', 'help'].includes(v0)) go(v0);
+</script>
+</body>
+</html>
