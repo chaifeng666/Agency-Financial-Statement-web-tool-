@@ -57,7 +57,15 @@
 
 ## 教材包
 
-**下載 ZIP**：[決算總說明產生教材包.zip](download/決算總說明產生教材包.zip)（50 個檔案，8.6 MB；ZIP SHA-256 `ef838bb8c7b30fbec165251b92d0fa69b1ef74529dad8580ae444207ef829791`）。點進去後按右上角「Download raw file」（下載圖示）下載；解壓後先讀「00_教材清單（請先讀我）.txt」。
+**下載 ZIP**（50 個檔案，8.6 MB；SHA-256 `ef838bb8c7b30fbec165251b92d0fa69b1ef74529dad8580ae444207ef829791`），任選一種：
+
+| 方式 | 網址 | 說明 |
+|---|---|---|
+| ① GitHub Releases（建議） | <https://github.com/chaifeng666/Agency-Financial-Statement-web-tool-/releases/latest/download/summary-course-kit.zip> | 點了直接下載；`download/` 的 ZIP 更新並合併到 main 後，由 GitHub Actions 自動更新 |
+| ② 下載頁（GitHub Pages） | <https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/download/> | 按「下載 ZIP」 |
+| ③ 直接檔案 | <https://github.com/chaifeng666/Agency-Financial-Statement-web-tool-/raw/main/download/%E6%B1%BA%E7%AE%97%E7%B8%BD%E8%AA%AA%E6%98%8E%E7%94%A2%E7%94%9F%E6%95%99%E6%9D%90%E5%8C%85.zip> | 點了直接下載 |
+
+> 在 GitHub 檔案清單點 ZIP 會顯示「We can't show files that are this big right now」，這是預覽限制，不是檔案有問題；請改用上面的網址。解壓後先讀「00_教材清單（請先讀我）.txt」。
 
 [`教材包/決算總說明產生教材包/`](教材包/決算總說明產生教材包)：主計 AI 應用與實作課程案例教材（簡報、Prompt 集與提示語歷程、素材、成果檔、★半成品與題目檔）。檔案清單與 SHA-256 完整性檢查見 [`教材包/決算總說明產生教材包_檔案明細.txt`](教材包/決算總說明產生教材包_檔案明細.txt)。素材取自公開決算書表，含個人資料的明細頁已遮蔽。
 

@@ -1,0 +1,31 @@
+# 教材包 ZIP 有更新時，自動建立／更新 GitHub Release，提供穩定的直接下載網址：
+# https://github.com/chaifeng666/Agency-Financial-Statement-web-tool-/releases/latest/download/summary-course-kit.zip
+name: 發布教材包下載
+on:
+  push:
+    branches: [main]
+    paths: ['download/*.zip', 'download/RELEASE_NOTES.md']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 建立或更新 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG=course-kit-summary
+          cp "download/決算總說明產生教材包.zip" summary-course-kit.zip
+          cp "download/決算總說明產生教材包_檔案明細.txt" summary-course-kit-manifest.txt
+          sha256sum summary-course-kit.zip
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file download/RELEASE_NOTES.md
+            gh release upload "$TAG" "summary-course-kit.zip#決算總說明產生教材包.zip" "summary-course-kit-manifest.txt#決算總說明產生教材包_檔案明細.txt" --clobber
+          else
+            gh release create "$TAG" "summary-course-kit.zip#決算總說明產生教材包.zip" "summary-course-kit-manifest.txt#決算總說明產生教材包_檔案明細.txt" \
+              --title "決算總說明產生教材包" --notes-file download/RELEASE_NOTES.md --latest
+          fi
