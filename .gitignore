@@ -6,3 +6,6 @@
 決算*.xlsx
 *年度*.xlsx
 node_modules/
+
+# 例外：教材包公開版 ZIP（不含機關資料）
+!download/決算書表編製工具教材包_公開版.zip
