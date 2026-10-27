@@ -39,6 +39,36 @@
 
 另有「列印版面」分頁可全頁檢視、縮放、跳表、列印，並可開啟以前下載的列印版面檔。
 
+## 總說明產生工具
+
+[`summary-tool.html`](summary-tool.html)：單一 HTML、離線執行，專做決算書的**總說明**。
+
+| 步驟 | 內容 |
+|---|---|
+| 1 上年度決算書（選用） | 上傳上年度定稿 PDF，列出總說明每個金額、比率出現在哪張書表、印刷頁／PDF 頁、哪一列，可匯出 Excel；擷取上年度科目內容說明與施政成果文字 |
+| 2 匯入系統產製表件 | 任一年度 `.xls`（可選整個資料夾），依檔名辨識表號，同表號取最新 |
+| 3 數據與檢核 | 每個數字的來源儲存格；表間檢核（歲入加總、繳付公庫數、實現＋保留、庫撥數、保留分析表、資產＝負債＋淨資產） |
+| 4 文字編修 | 保留原因（自歲出保留分析表摘要）、動支第一預備金用途、科目內容說明、平衡表變動原因（門檻可調）、施政成果；即時預覽 |
+| 5 產生 Word | 總說明 `.docx`（A4 直式、標楷體）、數字來源說明 `.docx`（A4 橫式）、數字來源 Excel |
+
+書表沒有的文字以黃底紅字標示待補。原始碼在 `summary/src/`，修改後執行 `python3 summary/build.py`。
+
+**線上使用**：<https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/summary-tool.html>
+
+## 教材包
+
+**下載 ZIP**（50 個檔案，8.6 MB；SHA-256 `ef838bb8c7b30fbec165251b92d0fa69b1ef74529dad8580ae444207ef829791`），任選一種：
+
+| 方式 | 網址 | 說明 |
+|---|---|---|
+| ① GitHub Releases（建議） | <https://github.com/chaifeng666/Agency-Financial-Statement-web-tool-/releases/latest/download/summary-course-kit.zip> | 點了直接下載；`download/` 的 ZIP 更新並合併到 main 後，由 GitHub Actions 自動更新 |
+| ② 下載頁（GitHub Pages） | <https://chaifeng666.github.io/Agency-Financial-Statement-web-tool-/download/> | 按「下載 ZIP」 |
+| ③ 直接檔案 | <https://github.com/chaifeng666/Agency-Financial-Statement-web-tool-/raw/main/download/%E6%B1%BA%E7%AE%97%E7%B8%BD%E8%AA%AA%E6%98%8E%E7%94%A2%E7%94%9F%E6%95%99%E6%9D%90%E5%8C%85.zip> | 點了直接下載 |
+
+> 在 GitHub 檔案清單點 ZIP 會顯示「We can't show files that are this big right now」，這是預覽限制，不是檔案有問題；請改用上面的網址。解壓後先讀「00_教材清單（請先讀我）.txt」。
+
+[`教材包/決算總說明產生教材包/`](教材包/決算總說明產生教材包)：主計 AI 應用與實作課程案例教材（簡報、Prompt 集與提示語歷程、素材、成果檔、★半成品與題目檔）。檔案清單與 SHA-256 完整性檢查見 [`教材包/決算總說明產生教材包_檔案明細.txt`](教材包/決算總說明產生教材包_檔案明細.txt)。素材取自公開決算書表，含個人資料的明細頁已遮蔽。
+
 ## 系統檔命名
 
 `年度_表號_表名_時間戳.xls`，例如 `114_2_決算編制_歲出政事別決算表_20260821232853_….xls`。同表號有多個檔案時取時間最新者。
@@ -73,6 +103,8 @@ src/
   sum2.js               總說明草稿
   render2.js            列印版面與依規格 Excel
   spec2.json            內建格式規格（113 年度）
+summary/src/            總說明產生工具（engine.js 擷取與產生、pdfref.js 上年度 PDF 分析、app.js 介面）
+summary/build.py        組成 summary-tool.html
 vendor/                 第三方元件（見 THIRD_PARTY_NOTICES.md）
 tools/exceljs-bundle/   ExcelJS 瀏覽器版重新打包腳本
 build.py                組成單一檔 index.html（完整版）與 simple.html（簡易版）
