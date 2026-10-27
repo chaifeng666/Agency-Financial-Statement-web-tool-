@@ -57,6 +57,8 @@
 
 ## 教材包
 
+**下載 ZIP**：[決算總說明產生教材包.zip](https://github.com/chaifeng666/Agency-Financial-Statement-web-tool-/raw/main/download/%E6%B1%BA%E7%AE%97%E7%B8%BD%E8%AA%AA%E6%98%8E%E7%94%A2%E7%94%9F%E6%95%99%E6%9D%90%E5%8C%85.zip)（50 個檔案，8.6 MB；ZIP SHA-256 `18bdf58231a666f3eceb1e2e0cfd5da31803336ecc337c5a7110116d21c0542d`）。也可到 [`download/`](download) 資料夾點檔案後按「Download raw file」。
+
 [`教材包/決算總說明產生教材包/`](教材包/決算總說明產生教材包)：主計 AI 應用與實作課程案例教材（簡報、Prompt 集與提示語歷程、素材、成果檔、★半成品與題目檔）。檔案清單與 SHA-256 完整性檢查見 [`教材包/決算總說明產生教材包_檔案明細.txt`](教材包/決算總說明產生教材包_檔案明細.txt)。素材取自公開決算書表，含個人資料的明細頁已遮蔽。
 
 ## 系統檔命名
